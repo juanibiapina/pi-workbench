@@ -1,0 +1,32 @@
+{
+  "name": "@juanibiapina/pi-session-context",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juanibiapina/pi-workbench",
+    "directory": "packages/pi-session-context"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "bin"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "exports": {
+    "./client": "./src/client.ts",
+    "./src/index.ts": "./src/index.ts",
+    ".": "./src/index.ts"
+  }
+}

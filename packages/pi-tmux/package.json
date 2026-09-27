@@ -1,0 +1,34 @@
+{
+  "name": "@juanibiapina/pi-tmux",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juanibiapina/pi-workbench",
+    "directory": "packages/pi-tmux"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "bin"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@juanibiapina/pi-session-context": "0.1.0"
+  },
+  "bin": {
+    "pi-tmux-notify-switch": "bin/notify-switch",
+    "pi-tmux-notify-clear": "bin/notify-clear"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

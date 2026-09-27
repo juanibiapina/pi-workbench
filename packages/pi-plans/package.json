@@ -1,0 +1,31 @@
+{
+  "name": "@juanibiapina/pi-plans",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juanibiapina/pi-workbench",
+    "directory": "packages/pi-plans"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "bin"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@juanibiapina/pi-session-context": "0.1.0",
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
