@@ -1,6 +1,6 @@
 {
   "name": "@juanibiapina/pi-tmux",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -22,7 +22,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@juanibiapina/pi-session-context": "0.1.0"
+    "@juanibiapina/pi-session-context": "0.1.1"
   },
   "bin": {
     "pi-tmux-notify-switch": "bin/notify-switch",

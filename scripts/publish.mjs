@@ -6,7 +6,7 @@ for (const name of names) {
   const workspace = `packages/${name}`;
   const { version } = JSON.parse(readFileSync(`${workspace}/package.json`, "utf8"));
   const packageName = `@juanibiapina/${name}`;
-  const lookup = spawnSync("npm", ["view", `${packageName}@${version}`, "version", "--json"], { encoding: "utf8" });
+  const lookup = spawnSync("npm", ["view", `${packageName}@${version}`, "version", "--prefer-online", "--json"], { encoding: "utf8" });
   if (lookup.status === 0) {
     console.log(`${packageName}@${version} already published`);
     continue;

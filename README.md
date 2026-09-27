@@ -1,4 +1,4 @@
-# Pi Workbench
+# pi-workbench
 
 Seven Pi packages in one npm workspace. `@juanibiapina/pi-session-context` owns session and runtime files; five features contribute through its broker. `@juanibiapina/pi-workbench` loads all six from one Pi entry.
 

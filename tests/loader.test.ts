@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import test from "node:test";
@@ -15,12 +15,13 @@ test("packed packages load individually and together with Pi's loader", async ()
   try {
     execFileSync("npm", ["pack", "--workspaces", "--pack-destination", directory], { cwd: root, stdio: "pipe" });
     const tarballs = await readdir(directory);
+    const { version } = JSON.parse(await readFile(path.join(root, "packages/pi-workbench/package.json"), "utf8"));
     const aggregate = path.join(directory, "pi-workbench");
     const dependencies = path.join(aggregate, "node_modules", "@juanibiapina");
     for (const name of ["pi-workbench", "pi-session-context", ...features]) {
       const destination = name === "pi-workbench" ? aggregate : path.join(dependencies, name);
       await mkdir(destination, { recursive: true });
-      const tarball = tarballs.find((entry) => entry === `juanibiapina-${name}-0.1.0.tgz`);
+      const tarball = tarballs.find((entry) => entry === `juanibiapina-${name}-${version}.tgz`);
       assert.ok(tarball, `Missing ${name} tarball`);
       execFileSync("tar", ["-xzf", path.join(directory, tarball), "-C", destination, "--strip-components=1"]);
     }

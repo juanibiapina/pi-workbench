@@ -1,4 +1,4 @@
-name: Check Pi Workbench
+name: Check pi-workbench
 on:
   push:
     branches: [main]

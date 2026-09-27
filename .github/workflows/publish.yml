@@ -1,4 +1,4 @@
-name: Publish Pi Workbench
+name: Publish pi-workbench
 on:
   push:
     tags:
