@@ -73,7 +73,10 @@ test("legacy session plans remain editable after migration and deletion", async 
     const saved = await call("save_plan", context, { title: "Build", content: "# First\n" });
     const plan = saved.details.plan;
     await writeFile(plan.path, "# Revised\n");
-    const view = (await call("get_session_context", context, {})).details;
+    const listed = await call("get_session_context", context, {});
+    const view = listed.details;
+    assert.ok(listed.content[0].text.includes(plan.path));
+    assert.deepEqual(view.attachments, [{ id: plan.id, path: plan.path }]);
     assert.deepEqual(view.extensions["pi-plans"].data.plans, [{ id: plan.id, title: "Build", path: `legacy.jsonl.plans/${plan.id}.md` }]);
     assert.deepEqual(view.extensions["pi-github"].data.pullRequests, ["https://github.com/o/r/pull/3"]);
     assert.deepEqual(view.extensions["pi-skills"].data.skills, ["old-skill"]);

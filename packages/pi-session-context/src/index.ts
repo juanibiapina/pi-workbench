@@ -1,4 +1,4 @@
-import { rename, unlink } from "node:fs/promises";
+import { readdir, rename, unlink } from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
@@ -207,7 +207,14 @@ export function register(pi: ExtensionAPI, options: Options = {}): void {
     async execute(_id, _args, _signal, _update, ctx) {
       const value = await snapshot(ctx);
       const names = Object.keys(value.extensions);
-      return { content: [{ type: "text", text: `Session ${value.sessionId} context: ${value.contextPath}\nNamespaces: ${names.join(", ") || "none"}\n${JSON.stringify(value.extensions, null, 2)}` }], details: value };
+      const dir = store.attachmentDir(fileOf(ctx));
+      const files = await readdir(dir).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return [];
+        throw error;
+      });
+      const attachments = files.filter((file) => /^[a-f0-9]{24}\.md$/.test(file)).map((file) => ({ id: file.slice(0, -3), path: path.join(dir, file) }));
+      const text = `Session ${value.sessionId} context: ${value.contextPath}\nNamespaces: ${names.join(", ") || "none"}\nAttachments:\n${attachments.map((item) => `- ${item.id}: ${item.path}`).join("\n") || "- None"}\n${JSON.stringify(value.extensions, null, 2)}`;
+      return { content: [{ type: "text", text }], details: { ...value, attachments } };
     },
   });
 }
