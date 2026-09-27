@@ -18,12 +18,13 @@ Alternatively, install only the components you want. If you install a feature on
 
 | Component | Purpose |
 | --- | --- |
-| [`pi-session-context`](#pi-session-context) | Stores session data and live status. |
-| [`pi-tmux`](#pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
-| [`pi-socket`](#pi-socket) | Lets local programs control a running Pi session. |
-| [`pi-plans`](#pi-plans) | Per session plans. |
-| [`pi-github`](#pi-github) | Per session pull request tracking. |
-| [`pi-skills`](#pi-skills) | Improve skills loader with support for remote URLs. |
+| [`pi-workbench`](packages/pi-workbench) | Installs all components together. |
+| [`pi-session-context`](packages/pi-session-context) | Stores session data and live status. |
+| [`pi-tmux`](packages/pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
+| [`pi-socket`](packages/pi-socket) | Lets local programs control a running Pi session. |
+| [`pi-plans`](packages/pi-plans) | Per session plans. |
+| [`pi-github`](packages/pi-github) | Per session pull request tracking. |
+| [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
 
 ### pi-session-context
 
