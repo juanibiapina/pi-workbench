@@ -1,22 +1,28 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
 
-const packages = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../packages");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const features = ["pi-tmux", "pi-socket", "pi-plans", "pi-github", "pi-skills"];
-test("copied packages load individually and together with Pi's loader", async () => {
+test("packed packages load individually and together with Pi's loader", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-packages-loader-"));
   const agentDir = path.join(directory, "empty-agent");
   try {
+    execFileSync("npm", ["pack", "--workspaces", "--pack-destination", directory], { cwd: root, stdio: "pipe" });
+    const tarballs = await readdir(directory);
     const aggregate = path.join(directory, "pi-workbench");
-    await cp(path.join(packages, "pi-workbench"), aggregate, { recursive: true });
     const dependencies = path.join(aggregate, "node_modules", "@juanibiapina");
-    for (const name of ["pi-session-context", ...features]) {
-      await cp(path.join(packages, name), path.join(dependencies, name), { recursive: true });
+    for (const name of ["pi-workbench", "pi-session-context", ...features]) {
+      const destination = name === "pi-workbench" ? aggregate : path.join(dependencies, name);
+      await mkdir(destination, { recursive: true });
+      const tarball = tarballs.find((entry) => entry === `juanibiapina-${name}-0.1.0.tgz`);
+      assert.ok(tarball, `Missing ${name} tarball`);
+      execFileSync("tar", ["-xzf", path.join(directory, tarball), "-C", destination, "--strip-components=1"]);
     }
     const provider = path.join(dependencies, "pi-session-context");
     for (const feature of features) {

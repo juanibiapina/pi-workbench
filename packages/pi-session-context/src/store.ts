@@ -45,14 +45,26 @@ function validate(snapshot: unknown, id: string): SessionSnapshot {
   }
   return value;
 }
-function migrate(old: Record<string, unknown>, id: string): SessionSnapshot {
+function migrate(old: Record<string, unknown>, id: string, file: string): SessionSnapshot {
   if (old.version !== 1 || old.sessionId !== id || !Array.isArray(old.plans) ||
       (old.pullRequests !== undefined && !Array.isArray(old.pullRequests)) ||
       (old.skills !== undefined && !Array.isArray(old.skills))) throw new Error("Invalid legacy Pi session context");
   for (const plan of old.plans) {
     if (!plan || typeof plan !== "object" || !validPlanId(plan.id) || typeof plan.title !== "string" ||
-        typeof plan.path !== "string" || !plan.path.endsWith(`.plans/${plan.id}.md`)) throw new Error("Invalid legacy plan");
+        typeof plan.path !== "string" || plan.path !== `${path.basename(file, ".context.json")}.plans/${plan.id}.md`) throw new Error("Invalid legacy plan");
   }
+  const prs = (old.pullRequests ?? []) as unknown[];
+  const skills = (old.skills ?? []) as unknown[];
+  if (new Set(prs).size !== prs.length || prs.some((item) =>
+      typeof item !== "string" || !/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+\/pull\/[1-9][0-9]*$/.test(item)))
+    throw new Error("Invalid legacy pull requests");
+  if (new Set(skills).size !== skills.length || skills.some((item) =>
+      typeof item !== "string" || item.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item)))
+    throw new Error("Invalid legacy skills");
+  if (old.skillPaths !== undefined && (!old.skillPaths || typeof old.skillPaths !== "object" || Array.isArray(old.skillPaths) ||
+      Object.entries(old.skillPaths).some(([name, filePath]) =>
+        !skills.includes(name) || typeof filePath !== "string" || !path.isAbsolute(filePath) || path.basename(filePath) !== "SKILL.md")))
+    throw new Error("Invalid legacy skill paths");
   const extensions: Record<string, Entry> = {};
   if (old.plans.length) extensions["pi-plans"] = entry({ plans: old.plans });
   if ((old.pullRequests as unknown[] | undefined)?.length) extensions["pi-github"] = entry({ pullRequests: old.pullRequests });
@@ -83,7 +95,7 @@ export class Store {
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { throw new Error(`Could not read Pi session context ${file}`); }
     if ((parsed as {version?: number})?.version === 1) {
-      const updated = validate(migrate(parsed as Record<string, unknown>, id), id);
+      const updated = validate(migrate(parsed as Record<string, unknown>, id, file), id);
       const backup = `${file}.v1.bak`;
       try { await copyFile(file, backup, 1); }
       catch (error) { if ((error as NodeJS.ErrnoException)?.code !== "EEXIST") throw error; }

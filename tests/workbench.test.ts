@@ -86,6 +86,20 @@ test("legacy session plans remain editable after migration and deletion", async 
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
+test("invalid legacy data remains intact instead of being migrated", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "pi-invalid-legacy-"));
+  try {
+    const { pi, ctx, emit } = harness(dir);
+    const file = path.join(dir, "invalid.jsonl.context.json");
+    const old = JSON.stringify({ version: 1, sessionId: "invalid", plans: [{ id: "0123456789abcdef01234567", title: "Bad", path: "../../other.plans/0123456789abcdef01234567.md" }] });
+    await writeFile(file, old);
+    provider(pi, { dataDir: dir });
+    await assert.rejects(emit("session_start", ctx("invalid")), /Invalid legacy plan/);
+    assert.equal(await readFile(file, "utf8"), old);
+    await assert.rejects(stat(`${file}.v1.bak`), { code: "ENOENT" });
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
 test("a feature alone reports a missing provider instead of writing", async () => {
   const { pi, ctx, call } = harness(tmpdir());
   github(pi);
