@@ -1,11 +1,86 @@
 # pi-workbench
 
-Seven Pi packages in one npm workspace. `@juanibiapina/pi-session-context` owns session and runtime files; five features contribute through its broker. `@juanibiapina/pi-workbench` loads all six from one Pi entry.
+pi-workbench turns [Pi](https://github.com/earendil-works/pi) in tmux into a development environment.
 
-## Install
+## Full workbench
 
-Install **either** `@juanibiapina/pi-workbench` **or** the provider and selected feature packages. For example, use `pi install npm:@juanibiapina/pi-workbench` for the full set. For plans alone, run `pi install npm:@juanibiapina/pi-session-context` and `pi install npm:@juanibiapina/pi-plans`. A feature's npm dependency provides client code; it does not enable the provider extension. Do not enable both the aggregate and individual packages in one Pi installation.
+`@juanibiapina/pi-workbench` loads all components below as one Pi extension. Install it to use the full workbench:
 
-Local path packages need their dependencies available under `node_modules`. The dotfiles repository pins one monorepo revision through Nix and assembles the package links before enabling the aggregate. npm installations resolve dependencies normally. From this repository after `npm ci`, run `node --import tsx tests/probe-installed.mjs ~/.pi/agent/pi-packages/pi-workbench` to check the installed aggregate in a temporary session.
+```sh
+pi install npm:@juanibiapina/pi-workbench
+```
 
-See [the contribution protocol](docs/protocol.md) and [release procedure](docs/releases.md).
+Run Pi inside tmux to see activity and notifications in tmux. Other features also work outside tmux.
+
+## Components
+
+Alternatively, install only the components you want. If you install a feature on its own, also install `pi-session-context`. Pi must load the provider extension to save that feature's data. Do not install the full workbench and separate components in the same Pi installation.
+
+| Component | Purpose |
+| --- | --- |
+| [`pi-session-context`](#pi-session-context) | Stores session data and live status. |
+| [`pi-tmux`](#pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
+| [`pi-socket`](#pi-socket) | Lets local programs control a running Pi session. |
+| [`pi-plans`](#pi-plans) | Per session plans. |
+| [`pi-github`](#pi-github) | Per session pull request tracking. |
+| [`pi-skills`](#pi-skills) | Improve skills loader with support for remote URLs. |
+
+### pi-session-context
+
+Tracks data for each session and live status. Check [protocol](docs/protocol.md) for integrating your own extensions.
+
+**Tools:**
+
+- `get_session_context`: Returns all data saved in the current session context.
+
+Session data lives in `<sessionFile>.context.json`. Live status lives under `~/.local/share/pi/status/` until the session closes.
+
+### pi-tmux
+
+Tmux integration. Tracks when Pi is working and when it finishes outside the visible pane. It also saves the pane and window location in live session status.
+
+These variables are available to display Pi's state in your tmux configuration:
+
+- `@pi_state`: The pane's working or pending notification state.
+- `@pi_notify_at`: The time of a pending notification.
+- `@pi_win_state`: The window's state across its panes.
+
+**Commands:** `pi-tmux-notify-switch` visits the oldest pending notification. `pi-tmux-notify-clear` clears notifications in a window.
+
+Pi must run inside tmux for this feature to work. Configure tmux to call the clear command when you view a window.
+
+### pi-socket
+
+Opens a private Unix socket for the running session. Local programs can read its state and control the session.
+
+**Socket requests:** `ping`, `get_state`, `send_user_message`, `abort`, `shutdown`, `set_editor_text`, `compact`.
+
+The socket path appears in the live status from `pi-session-context`.
+
+### pi-plans
+
+Keeps editable Markdown plans with the session. Plan files live in `<sessionFile>.plans/`.
+
+**Tools:**
+
+- `save_plan`: Saves a plan and returns its path.
+- `delete_plan`: Removes a saved plan.
+
+### pi-github
+
+Keeps GitHub pull request URLs with the session.
+
+**Tools:**
+
+- `save_pr`: Adds a pull request URL.
+- `remove_pr`: Removes a pull request URL.
+
+### pi-skills
+
+Loads local skills and skills from public GitHub URLs. Records loaded skills with the session.
+
+**Tools:**
+
+- `load_skill`: Loads a skill by local name or GitHub URL.
+
+Skills invoked with `/skill:<name>` are also tracked.
