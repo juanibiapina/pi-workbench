@@ -39,4 +39,4 @@ tmux select-pane -t "$best_pane"
 # Clear the window we just arrived at, deterministically (the navigation hooks
 # also fire, but doing it here makes the next press advance regardless of hook
 # timing).
-"$(dirname "$0")/notify-clear" "$best_win"
+"$(dirname "$0")/pi-tmux-notify-clear" "$best_win"
