@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-github` are recorded here. This file fo
 
 ## [Unreleased]
 
+### Changed
+
+- Show one-line pull request calls with clickable links; expand a row to see its full URL.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

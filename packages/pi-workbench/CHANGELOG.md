@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ## [Unreleased]
 
+### Changed
+
+- Show one-line calls for skill, session context, plan, and pull request tools, with clickable links in expanded details.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

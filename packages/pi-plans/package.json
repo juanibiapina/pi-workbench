@@ -26,6 +26,9 @@
     "@juanibiapina/pi-session-context": "0.1.1",
     "@sinclair/typebox": "^0.34.0"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-tui": "*"
+  },
   "exports": {
     ".": "./src/index.ts"
   }

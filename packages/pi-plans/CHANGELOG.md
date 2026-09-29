@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ## [Unreleased]
 
+### Changed
+
+- Show one-line plan calls; expand a saved plan to open its file or see its ID.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

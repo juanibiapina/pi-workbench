@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-session-context` are recorded here. Thi
 
 ## [Unreleased]
 
+### Changed
+
+- Show a one-line session context call; expand it to open the context file and attachments.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

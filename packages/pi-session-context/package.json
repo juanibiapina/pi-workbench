@@ -25,6 +25,9 @@
   "dependencies": {
     "@sinclair/typebox": "^0.34.0"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-tui": "*"
+  },
   "exports": {
     "./client": "./src/client.ts",
     "./src/index.ts": "./src/index.ts",

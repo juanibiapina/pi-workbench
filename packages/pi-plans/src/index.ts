@@ -1,8 +1,17 @@
+import { homedir } from "node:os";
+import { isAbsolute } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
 import { createContributor } from "@juanibiapina/pi-session-context/client";
 
 type Plan = { id: string; title: string; path: string };
+const displayPath = (value: string) => value.startsWith(`${homedir()}/`) ? `~${value.slice(homedir().length)}` : value;
+const linkPath = (label: string, value: string) =>
+  isAbsolute(value) && getCapabilities().hyperlinks ? hyperlink(label, pathToFileURL(value).href) : label;
+const resultText = (result: { content: Array<{ type: string; text?: string }> }) =>
+  result.content.find((item) => item.type === "text")?.text ?? "Operation failed";
 const plans = (value: unknown): Plan[] => {
   if (value === undefined) return [];
   const data = value as { plans?: unknown };
@@ -27,6 +36,18 @@ export function register(pi: ExtensionAPI): void {
       const plan = { id: attachment.id, title, path: attachment.path };
       return { content: [{ type: "text", text: `Saved plan "${title}" to session context at ${plan.path} (ID: ${plan.id}).` }], details: { sessionId: ctx.sessionManager.getSessionId(), plan } };
     },
+    renderCall(args, theme) {
+      return new TruncatedText(theme.fg("toolTitle", theme.bold("save_plan ")) + theme.fg("accent", args?.title ?? "…"));
+    },
+    renderResult(result, { expanded, isPartial }, theme, context) {
+      if (context.isError) return new Text(theme.fg("error", resultText(result)), 0, 0);
+      if (!expanded) return new Spacer(0);
+      if (isPartial) return new Text(theme.fg("warning", "Saving plan…"), 0, 0);
+      const plan = (result.details as { plan?: Plan } | undefined)?.plan;
+      if (!plan) return new TruncatedText(theme.fg("toolOutput", resultText(result)));
+      const shownPath = displayPath(plan.path);
+      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}`, 0, 0);
+    },
   });
   pi.registerTool({
     name: "delete_plan", label: "Delete Plan",
@@ -41,6 +62,17 @@ export function register(pi: ExtensionAPI): void {
         return { plans: previous.filter((item) => item.id !== planId) };
       });
       return { content: [{ type: "text", text: `Deleted plan "${removed!.title}" (${planId}) from session context.` }], details: { sessionId: ctx.sessionManager.getSessionId(), plan: removed! } };
+    },
+    renderCall(args, theme) {
+      return new TruncatedText(theme.fg("toolTitle", theme.bold("delete_plan ")) + theme.fg("accent", args?.planId ?? "…"));
+    },
+    renderResult(result, { expanded, isPartial }, theme, context) {
+      if (context.isError) return new Text(theme.fg("error", resultText(result)), 0, 0);
+      if (!expanded) return new Spacer(0);
+      if (isPartial) return new Text(theme.fg("warning", "Deleting plan…"), 0, 0);
+      const plan = (result.details as { plan?: Plan } | undefined)?.plan;
+      if (!plan) return new TruncatedText(theme.fg("toolOutput", resultText(result)));
+      return new Text(`${theme.fg("muted", "Title: ")}${theme.fg("accent", plan.title)}\n${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", `Path: ${plan.path}`)}`, 0, 0);
     },
   });
 }

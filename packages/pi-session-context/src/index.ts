@@ -1,11 +1,17 @@
 import { readdir, rename, unlink } from "node:fs/promises";
+import { homedir } from "node:os";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
 import { AVAILABLE, PROTOCOL, REQUEST, type Broker, type Entry, type RuntimeSnapshot, type SessionRef, type SessionSnapshot } from "./client.ts";
 import { Store, contextPathFor, validNamespace } from "./store.ts";
 
 export { Store, contextPathFor } from "./store.ts";
+const displayPath = (value: string) => value.startsWith(`${homedir()}/`) ? `~${value.slice(homedir().length)}` : value;
+const linkPath = (label: string, value: string) =>
+  path.isAbsolute(value) && getCapabilities().hyperlinks ? hyperlink(label, pathToFileURL(value).href) : label;
 export type Options = { dataDir?: string; pid?: number; now?: () => Date };
 function jsonData(value: unknown): unknown {
   const seen = new Set<object>();
@@ -215,6 +221,30 @@ export function register(pi: ExtensionAPI, options: Options = {}): void {
       const attachments = files.filter((file) => /^[a-f0-9]{24}\.md$/.test(file)).map((file) => ({ id: file.slice(0, -3), path: path.join(dir, file) }));
       const text = `Session ${value.sessionId} context: ${value.contextPath}\nNamespaces: ${names.join(", ") || "none"}\nAttachments:\n${attachments.map((item) => `- ${item.id}: ${item.path}`).join("\n") || "- None"}\n${JSON.stringify(value.extensions, null, 2)}`;
       return { content: [{ type: "text", text }], details: { ...value, attachments } };
+    },
+    renderCall(_args, theme) {
+      return new TruncatedText(theme.fg("toolTitle", theme.bold("get_session_context")));
+    },
+    renderResult(result, { expanded, isPartial }, theme, context) {
+      const output = result.content.find((item) => item.type === "text");
+      if (context.isError) return new Text(theme.fg("error", output?.text ?? "Could not read session context"), 0, 0);
+      if (!expanded) return new Spacer(0);
+      if (isPartial) return new Text(theme.fg("warning", "Reading session context…"), 0, 0);
+      const details = result.details as { extensions?: Record<string, unknown>; attachments?: Array<{ id: string; path: string }>; contextPath?: string } | undefined;
+      if (!details?.extensions || !Array.isArray(details.attachments)) {
+        return new TruncatedText(theme.fg("toolOutput", output?.text ?? "Session context unavailable"));
+      }
+      const names = Object.keys(details.extensions);
+      const count = details.attachments.length;
+      const shown = details.attachments.slice(0, 10);
+      const remaining = details.attachments.length - shown.length;
+      const contextPath = details.contextPath;
+      const lines = [theme.fg("muted", "Context: ") + (contextPath ? linkPath(theme.fg("accent", displayPath(contextPath)), contextPath) : "unknown"),
+        theme.fg("muted", `Namespaces (${names.length}): ${names.join(", ") || "none"}`),
+        theme.fg("muted", `Attachments (${count}):`),
+        ...shown.map((item) => linkPath(theme.fg("accent", displayPath(item.path)), item.path))];
+      if (remaining > 0) lines.push(theme.fg("muted", `… ${remaining} more attachments`));
+      return new Text(lines.join("\n"), 0, 0);
     },
   });
 }
