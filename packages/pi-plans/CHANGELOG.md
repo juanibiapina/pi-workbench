@@ -15,6 +15,7 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ### Changed
 
+- Run instructions use the server included in the Pi extension installation.
 - Show one-line plan calls; expand a saved plan to open its file or see its ID.
 
 ## [0.1.1] - 2026-09-27

@@ -1,6 +1,6 @@
 # npm releases
 
-Run `npm ci`, `npm run check`, `npm test`, and `npm pack --dry-run --workspaces` before publishing.
+Run `npm ci`, `npm run check`, `npm run build`, `npm test`, and `npm pack --dry-run --workspaces` in that order before publishing.
 
 ## Package changelogs
 

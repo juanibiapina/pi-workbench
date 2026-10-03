@@ -4,27 +4,43 @@ Saves editable Markdown plans with a Pi session.
 
 ## Install
 
-Install the session context provider alongside this extension:
-
 ```sh
 pi install npm:@juanibiapina/pi-session-context
 pi install npm:@juanibiapina/pi-plans
 ```
 
-If you use the [full workbench](../pi-workbench), this component is already included.
+Already included in the [full workbench](../pi-workbench).
 
-## Use
+## Agent tools
 
-- `save_plan({ title, content })` creates a Markdown file and returns its path and plan ID.
-- Edit the returned file path with your usual file tools. The plan lives in `<sessionFile>.plans/`.
-- `get_session_context()` lists plan IDs and attachment paths.
-- `delete_plan({ planId })` removes the plan and its Markdown file.
+This extension adds these tools to Pi's context:
 
-The plan index is saved in the session's context file under the `pi-plans` namespace.
+- `save_plan`: Saves a plan as an editable Markdown file in `<sessionFile>.plans/`.
+- `delete_plan`: Removes a saved plan and its file.
+
+The required session context extension adds `get_session_context`, which lists saved plans and other session data.
 
 ## Open and review a plan
 
-Start the server from a source checkout:
+Start the server in a separate terminal:
+
+```sh
+~/.pi/agent/npm/node_modules/.bin/pi-plans-serve
+```
+
+Open the browser link in expanded `save_plan` results. Ctrl-C stops the server.
+
+Approve a plan or submit comments to its running Pi session. This requires [pi-socket](../pi-socket#install), included in the full workbench.
+
+### Configuration
+
+For a project-local install, run `./.pi/npm/node_modules/.bin/pi-plans-serve` from the project directory.
+
+Use `--help` for options. The default port is `19433`; if you change it with `--port`, set `PI_PLANS_URL` when launching Pi and [Starmux's `plan_server_url`](https://github.com/juanibiapina/starmux/blob/main/docs/configuration.md#selected-pi-context) to match.
+
+## Development
+
+From the repository root:
 
 ```sh
 npm ci
@@ -32,22 +48,4 @@ npm run build
 npm run plans
 ```
 
-Open the browser link in expanded `save_plan` results. The package also provides the `pi-plans-serve` command.
-
-Click **Approve plan** to send `Implement` to the plan's Pi session. Open **Edit message** to change the text before sending. Approval preserves your draft comments.
-
-Select text, add comments, and submit them separately to the same session. That session must be running with `pi-socket` loaded. Busy sessions receive messages on their next turn.
-
-### Configuration
-
-```sh
-npm run plans -- --port 19434 --root /absolute/session-directory
-```
-
-The default session directory is `~/.pi/agent/sessions`. Repeat `--root` for additional directories. Live status also supplies session locations while Pi is running. `--data-dir` selects the live status directory's parent; its default is `~/.local/share/pi`.
-
-For a custom port, set `PI_PLANS_URL` to the server URL when launching Pi. Set the same URL in [Starmux's `plan_server_url`](https://github.com/juanibiapina/starmux/blob/main/docs/configuration.md#selected-pi-context) to open plans from its sidebar.
-
-## Development checks
-
-Run `npm run check`, `npm test`, and `npm run build`.
+Run `npm run check` and `npm test` after building.
