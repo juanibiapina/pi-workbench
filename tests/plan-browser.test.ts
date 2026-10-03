@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
-import { writeFile, rm, symlink, rename } from "node:fs/promises";
+import { writeFile, rm, symlink, rename, realpath } from "node:fs/promises";
 import * as path from "node:path";
 import test from "node:test";
 import { browserFixture } from "./plan-browser-fixture.ts";
 import { startPlanBrowser } from "../packages/pi-plans/src/browser-server.ts";
-import { sendSocketRequest } from "../packages/pi-socket/src/socket-server.ts";
-import type { PlanDocument, ReviewResult } from "../packages/pi-plans/src/browser-contract.ts";
+import type { PlanDocument, MessageResult } from "../packages/pi-plans/src/browser-contract.ts";
 
 test("plan links open after Pi closes and reflect Markdown edits", async () => {
   const f = await browserFixture();
   try {
     const doc = await (await f.request(f.endpoint)).json() as PlanDocument;
     assert.equal("recipient" in doc, false);
+    assert.equal(doc.path, await realpath(f.file));
     await f.socket.close();
     const closed = await (await f.request(f.endpoint)).json() as PlanDocument;
     assert.equal(closed.markdown, doc.markdown);
@@ -33,76 +33,90 @@ test("custom session locations require a configured root after live status disap
   } finally { await browser.close(); await f.close(); }
 });
 
-test("each submission sends its comments as one message to the owning busy session", async () => {
+test("implementation messages reach the owning idle session unchanged without comments", async () => {
   const f = await browserFixture();
   try {
-    f.work();
-    const review = { comments: [1, 2, 3].map(n => ({ id: `c${n}`, quote: "all plans", text: `Comment ${n}` })) };
-    const response = await f.request(`${f.endpoint}/reviews`, review);
-    assert.equal(response.status, 200);
-    assert.equal((await response.json() as ReviewResult).delivery, "followUp");
-    assert.equal(f.messages.length, 1);
-    assert.equal(f.messages[0]!.sessionId, "session-a");
-    assert.deepEqual(f.messages[0]!.options, { deliverAs: "followUp" });
-    assert.match(String(f.messages[0]!.message), /Comment 1[\s\S]*Comment 2[\s\S]*Comment 3/);
-    assert.equal((await f.request(`${f.endpoint}/reviews`, review)).status, 200);
+    for (const message of ["Implement", "  Implement steps 1 and 2.\nKeep step 3 for later.  "]) {
+      const response = await f.request(`${f.endpoint}/messages`, { message });
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json() as MessageResult, { delivery: "immediate" });
+      assert.deepEqual(f.messages.at(-1), { sessionId: "session-a", message, options: undefined });
+    }
     assert.equal(f.messages.length, 2);
   } finally { await f.close(); }
 });
 
-test("reviews submit after Markdown changes and deleted plans remain unavailable", async () => {
+test("each submission queues one unchanged message for the owning busy session", async () => {
+  const f = await browserFixture();
+  try {
+    f.work();
+    const message = "Review of plan: Delivery plan\nPlan ID: " + f.id + "\nMarkdown: " + f.file + "\n\n1. Selected text:\nall plans\nComment:\nComment 1\n\n2. Selected text:\n(Whole plan)\nComment:\nComment 2\n";
+    for (let count = 1; count <= 2; count++) {
+      const response = await f.request(`${f.endpoint}/messages`, { message });
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json() as MessageResult, { delivery: "followUp" });
+      assert.equal(f.messages.length, count);
+      assert.deepEqual(f.messages.at(-1), { sessionId: "session-a", message, options: { deliverAs: "followUp" } });
+    }
+  } finally { await f.close(); }
+});
+
+test("invalid message bodies are rejected without delivering to Pi", async () => {
+  const f = await browserFixture();
+  try {
+    for (const body of [{}, { message: "" }, { message: " \n\t" }, { message: 42 }, { message: null }, [], "Implement"]) {
+      assert.equal((await f.request(`${f.endpoint}/messages`, body)).status, 400);
+    }
+    assert.equal((await f.request(`${f.endpoint}/reviews`, { comments: [] })).status, 404);
+    assert.equal(f.messages.length, 0);
+  } finally { await f.close(); }
+});
+
+test("messages submit after Markdown changes and deleted plans remain unavailable", async () => {
   const f = await browserFixture();
   try {
     await f.request(f.endpoint);
-    const review = { comments: [{ id: "c1", quote: "all plans", text: "Explain this" }] };
     await writeFile(f.file, "Changed");
-    const response = await f.request(`${f.endpoint}/reviews`, review);
+    const response = await f.request(`${f.endpoint}/messages`, { message: "Implement" });
     assert.equal(response.status, 200);
-    assert.equal((await response.json() as ReviewResult).delivery, "immediate");
+    assert.equal((await response.json() as MessageResult).delivery, "immediate");
     assert.equal(f.messages.length, 1);
-    assert.match(String(f.messages[0]!.message), /all plans[\s\S]*Explain this/);
     await rm(f.file);
-    assert.equal((await f.request(`${f.endpoint}/reviews`, review)).status, 404);
+    assert.equal((await f.request(`${f.endpoint}/messages`, { message: "Implement" })).status, 404);
     assert.equal(f.messages.length, 1);
   } finally { await f.close(); }
 });
 
-test("browser accepts large Markdown and comments within existing socket limits", async () => {
+test("browser accepts large Markdown and messages within existing socket limits", async () => {
   const f = await browserFixture();
   try {
     const markdown = "# Large plan\n" + "Plan text.\n".repeat(30000);
     await writeFile(f.file, markdown);
     const document = await (await f.request(f.endpoint)).json() as PlanDocument;
     assert.equal(document.markdown, markdown);
-    const quote = "q".repeat(65000);
-    const text = "c".repeat(17000);
-    const comments = Array.from({ length: 101 }, (_, index) => ({ id: `c${index}`, quote: index ? "quote" : quote, text: index ? "Comment" : text }));
-    const response = await f.request(`${f.endpoint}/reviews`, { comments, padding: "p".repeat(512 * 1024) });
+    const message = "q".repeat(65000) + "\n" + "c".repeat(17000);
+    const response = await f.request(`${f.endpoint}/messages`, { message, padding: "p".repeat(512 * 1024) });
     assert.equal(response.status, 200);
-    assert.equal(f.messages.length, 1);
-    const message = String(f.messages[0]!.message);
-    assert.ok(Buffer.byteLength(message) < 256 * 1024);
-    assert.ok(message.includes(quote));
-    assert.ok(message.includes(text));
-    assert.ok(message.includes("101. Selected text:"));
-    const oversized = await f.request(`${f.endpoint}/reviews`, { comments: [{ id: "oversized", quote: "", text: "x".repeat(256 * 1024) }] });
+    assert.equal(f.messages[0]!.message, message);
+    const oversized = await f.request(`${f.endpoint}/messages`, { message: "x".repeat(256 * 1024 + 1) });
     assert.equal(oversized.status, 502);
     assert.match((await oversized.json() as { error: string }).error, /message exceeds 262144 bytes/);
     assert.equal(f.messages.length, 1);
   } finally { await f.close(); }
 });
 
-test("socket guards reject a switched session", async () => {
+test("messages fail when the owning session is unavailable or the socket switches sessions", async () => {
   const f = await browserFixture();
   try {
-    const expected = { expectedSessionId: "session-a" };
-    const request = { type: "send_user_message", message: "Review", ...expected };
-    assert.equal((await sendSocketRequest(f.socket.socketPath, request)).ok, true);
-    assert.equal(f.messages.length, 1);
     f.switchSession();
-    const response = await sendSocketRequest(f.socket.socketPath, request);
-    assert.deepEqual(response.error, { code: "session_mismatch", message: "The owning Pi session is no longer active on this socket" });
-    assert.equal(f.messages.length, 1);
+    const response = await f.request(`${f.endpoint}/messages`, { message: "Implement" });
+    assert.equal(response.status, 502);
+    assert.match((await response.json() as { error: string }).error, /owning Pi session is no longer active/);
+    await rm(path.join(f.root, "status", "session-a.json"));
+    const unavailable = await f.request(`${f.endpoint}/messages`, { message: "Implement" });
+    assert.equal(unavailable.status, 409);
+    assert.match((await unavailable.json() as { error: string }).error, /Resume the owning Pi session/);
+    assert.equal(f.messages.length, 0);
   } finally { await f.close(); }
 });
 

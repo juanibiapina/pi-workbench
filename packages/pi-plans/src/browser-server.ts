@@ -4,10 +4,10 @@ import { homedir } from "node:os";
 import * as path from "node:path";
 import { sendSocketRequest } from "@juanibiapina/pi-socket/client";
 import { browserOrigin } from "./browser-url.ts";
-import type { PlanDocument, ReviewResult, ReviewSubmission } from "./browser-contract.ts";
+import type { PlanDocument, MessageResult, MessageSubmission } from "./browser-contract.ts";
 
 type RecordValue = Record<string, unknown>;
-type LocatedPlan = Omit<PlanDocument, "markdown"> & { file: string };
+type LocatedPlan = Omit<PlanDocument, "markdown" | "path"> & { file: string };
 type Target = { socket: string; sessionId: string };
 export type BrowserOptions = { port?: number; roots?: string[]; dataDir?: string; assetsDir: string };
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
@@ -92,41 +92,34 @@ class Plans {
     let markdown: string;
     try { markdown = await readFile(plan.file, "utf8"); } catch { throw new HttpError(404, "Plan is missing"); }
     const { file: _file, ...summary } = plan;
-    return { ...summary, markdown };
+    return { ...summary, markdown, path: plan.file };
   }
 }
 
-function validateSubmission(value: unknown): ReviewSubmission {
-  const submission = object(value);
-  if (!Array.isArray(submission.comments) || !submission.comments.length) throw new HttpError(400, "Review needs comments");
-  const ids = new Set<string>();
-  const comments = submission.comments.map((value) => {
-    const comment = object(value);
-    if (typeof comment.id !== "string" || !comment.id || ids.has(comment.id) || typeof comment.text !== "string" || !comment.text.trim() || typeof comment.quote !== "string") throw new HttpError(400, "Each comment needs a unique ID, a quote, and nonempty text");
-    ids.add(comment.id);
-    return { id: comment.id, text: comment.text, quote: comment.quote };
-  });
-  return { comments };
+function validateSubmission(value: unknown): MessageSubmission {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new HttpError(400, "Expected a message object");
+  const message = (value as RecordValue).message;
+  if (typeof message !== "string" || !message.trim()) throw new HttpError(400, "Message needs nonempty text");
+  return { message };
 }
 
 export async function startPlanBrowser(options: BrowserOptions) {
   const dataDir = path.resolve(options.dataDir ?? path.join(homedir(), ".local", "share", "pi"));
   let origin = "";
   const plans = new Plans(options.roots ?? [path.join(homedir(), ".pi", "agent", "sessions")], dataDir);
-  const submit = async (plan: LocatedPlan, submission: ReviewSubmission): Promise<ReviewResult> => {
+  const submit = async (plan: LocatedPlan, { message }: MessageSubmission): Promise<MessageResult> => {
     const target = await plans.target(plan);
-    if (!target) throw new HttpError(409, "Resume the owning Pi session with pi-socket loaded, then submit again. Your comments are preserved");
-    const message = [`Review of plan: ${plan.title}`, `Plan ID: ${plan.id}`, `Markdown: ${plan.file}`, "", ...submission.comments.flatMap((comment, index) => [`${index + 1}. Selected text:`, comment.quote || "(Whole plan)", "Comment:", comment.text, ""])].join("\n");
+    if (!target) throw new HttpError(409, "Resume the owning Pi session with pi-socket loaded, then send again.");
     const response = await sendSocketRequest(target.socket, { type: "send_user_message", protocolVersion: 1, expectedSessionId: target.sessionId, message, delivery: "auto" });
-    if (response.ok !== true || object(response.result).accepted !== true) throw new HttpError(502, String(object(response.error).message ?? "Pi rejected this review"));
+    if (response.ok !== true || object(response.result).accepted !== true) throw new HttpError(502, String(response.error && typeof response.error === "object" ? (response.error as RecordValue).message ?? "Pi rejected this message" : "Pi rejected this message"));
     const delivery = object(response.result).delivery as "immediate" | "followUp";
-    return { delivery, message: delivery === "followUp" ? "Review queued for Pi's next turn" : "Review sent to Pi" };
+    return { delivery };
   };
   const json = (res: ServerResponse, status: number, value: unknown) => { res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify(value)); };
   const server = createServer((req, res) => { void (async () => {
     const url = new URL(req.url ?? "/", origin);
     if (url.pathname.startsWith("/api/")) {
-      const match = /^\/api\/plans\/([A-Za-z0-9-]+)\/([a-f0-9]{24})(\/reviews)?$/.exec(url.pathname);
+      const match = /^\/api\/plans\/([A-Za-z0-9-]+)\/([a-f0-9]{24})(\/messages)?$/.exec(url.pathname);
       if (match) {
         const plan = await plans.find(match[1]!, match[2]!);
         if (req.method === "GET" && !match[3]) return json(res, 200, await plans.document(plan));

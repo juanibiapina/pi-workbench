@@ -1,6 +1,5 @@
 export type PlanDocument = {
-  id: string; title: string; sessionId: string; markdown: string;
+  id: string; title: string; sessionId: string; markdown: string; path: string;
 };
-export type ReviewComment = { id: string; text: string; quote: string };
-export type ReviewSubmission = { comments: ReviewComment[] };
-export type ReviewResult = { delivery: "immediate" | "followUp"; message: string };
+export type MessageSubmission = { message: string };
+export type MessageResult = { delivery: "immediate" | "followUp" };

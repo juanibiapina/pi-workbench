@@ -6,6 +6,7 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ### Added
 
+- Approve a plan from the browser with an editable message to Pi.
 - Open and review saved plans in a local browser. Review comments are sent back to the corresponding pi session.
 
 ### Changed

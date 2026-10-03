@@ -34,7 +34,9 @@ npm run plans
 
 Open the browser link in expanded `save_plan` results. The package also provides the `pi-plans-serve` command.
 
-Select text, add comments, and send them to the plan's Pi session. That session must be running with `pi-socket` loaded. Busy sessions receive comments on their next turn. Drafts are saved in the browser, and plans remain readable after their session closes.
+Click **Approve plan** to send `Implement` to the plan's Pi session. Open **Edit message** to change the text before sending. Approval preserves your draft comments.
+
+Select text, add comments, and submit them separately to the same session. That session must be running with `pi-socket` loaded. Busy sessions receive messages on their next turn.
 
 ### Configuration
 

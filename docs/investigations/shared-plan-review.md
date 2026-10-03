@@ -1,6 +1,6 @@
 # Plan viewer integration notes
 
-The browser opens individual saved-plan links and sends comments to Pi. See the [usage instructions](../../packages/pi-plans/README.md#open-and-review-a-plan).
+The browser opens individual saved-plan links and sends messages to Pi. See the [usage instructions](../../packages/pi-plans/README.md#open-and-review-a-plan).
 
 ## Integration
 
@@ -8,7 +8,7 @@ Pi's session context provider owns the plan index and Markdown attachments. The 
 
 The existing socket supports `send_user_message` with immediate delivery when idle and followUp when busy. The browser includes `expectedSessionId`; the socket handler checks it before accepting the message. Existing socket size limits apply.
 
-Plannotator publishes reusable viewer and annotation-panel components. The browser bundles these components with its own file lookup and submission endpoints. The server is started manually.
+Plannotator publishes reusable viewer and annotation-panel components. The browser bundles these components with its own file lookup and message endpoint. It formats comment reviews before sending them; approval sends the editable implementation message. The server is started manually.
 
 ## Sources
 
