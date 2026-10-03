@@ -5,6 +5,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
 import { createContributor } from "@juanibiapina/pi-session-context/client";
+import { planUrl } from "./browser-url.ts";
 
 type Plan = { id: string; title: string; path: string };
 const displayPath = (value: string) => value.startsWith(`${homedir()}/`) ? `~${value.slice(homedir().length)}` : value;
@@ -43,10 +44,16 @@ export function register(pi: ExtensionAPI): void {
       if (context.isError) return new Text(theme.fg("error", resultText(result)), 0, 0);
       if (!expanded) return new Spacer(0);
       if (isPartial) return new Text(theme.fg("warning", "Saving plan…"), 0, 0);
-      const plan = (result.details as { plan?: Plan } | undefined)?.plan;
+      const details = result.details as { sessionId?: string; plan?: Plan } | undefined;
+      const plan = details?.plan;
       if (!plan) return new TruncatedText(theme.fg("toolOutput", resultText(result)));
       const shownPath = displayPath(plan.path);
-      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}`, 0, 0);
+      let browser = "";
+      try {
+        const url = planUrl(details?.sessionId ?? "", plan.id);
+        browser = `\n${getCapabilities().hyperlinks ? hyperlink(theme.fg("accent", "Open in browser"), url) : theme.fg("accent", url)}`;
+      } catch { /* A bad browser configuration must not affect the Markdown result. */ }
+      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}${browser}`, 0, 0);
     },
   });
   pi.registerTool({

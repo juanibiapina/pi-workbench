@@ -8,11 +8,12 @@
     "url": "https://github.com/juanibiapina/pi-workbench",
     "directory": "packages/pi-plans"
   },
+  "bin": { "pi-plans-serve": "./dist/serve.mjs" },
   "files": [
+    "dist",
     "src",
     "README.md",
-    "CHANGELOG.md",
-    "bin"
+    "CHANGELOG.md"
   ],
   "pi": {
     "extensions": [
@@ -24,6 +25,7 @@
   },
   "dependencies": {
     "@juanibiapina/pi-session-context": "0.1.1",
+    "@juanibiapina/pi-socket": "0.1.1",
     "@sinclair/typebox": "^0.34.0"
   },
   "peerDependencies": {

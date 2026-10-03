@@ -1,0 +1,11 @@
+import { build } from "esbuild";
+import { mkdir, writeFile, rm, chmod } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("../", import.meta.url));
+const directory = `${root}packages/pi-plans/dist`;
+await rm(directory, { recursive: true, force: true });
+await mkdir(`${directory}/web/assets`, { recursive: true });
+await build({ absWorkingDir: root, entryPoints: ["packages/pi-plans/src/browser-main.ts"], bundle: true, platform: "node", format: "esm", target: "node22", outfile: `${directory}/serve.mjs`, banner: { js: "#!/usr/bin/env node" } });
+await chmod(`${directory}/serve.mjs`, 0o755);
+await build({ absWorkingDir: root, entryPoints: { app: "packages/pi-plans/web/app.tsx" }, bundle: true, splitting: true, format: "esm", platform: "browser", target: "es2022", jsx: "automatic", minify: true, outdir: `${directory}/web/assets`, assetNames: "[name]-[hash]", chunkNames: "chunk-[hash]", loader: { ".woff2": "file", ".woff": "file", ".ttf": "file", ".png": "file", ".webp": "file", ".svg": "file" }, define: { "process.env.NODE_ENV": '"production"' } });
+await writeFile(`${directory}/web/index.html`, '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Saved plans · Pi</title><link rel="stylesheet" href="/assets/app.css"></head><body><div id="root"></div><script type="module" src="/assets/app.js"></script></body></html>');

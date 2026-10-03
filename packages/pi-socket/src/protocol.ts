@@ -12,6 +12,7 @@ export type ErrorCode =
 	| "unknown_type"
 	| "payload_too_large"
 	| "busy"
+	| "session_mismatch"
 	| "no_ui"
 	| "internal_error";
 

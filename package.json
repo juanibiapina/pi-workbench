@@ -7,13 +7,22 @@
   ],
   "scripts": {
     "test": "node --import tsx --test tests/*.test.ts",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit && tsc -p packages/pi-plans/web/tsconfig.json",
+    "build": "node scripts/build-plan-browser.mjs",
+    "plans": "node packages/pi-plans/dist/serve.mjs"
   },
+  "overrides": { "lodash-es": "4.18.1" },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.87.1",
     "@earendil-works/pi-tui": "0.87.1",
+    "@plannotator/ui": "0.47.0",
     "@sinclair/typebox": "^0.34.0",
     "@types/node": "^24.0.0",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "esbuild": "0.25.10",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   }

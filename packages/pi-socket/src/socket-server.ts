@@ -332,11 +332,18 @@ function getState(ctx: ExtensionContext, pi: ExtensionAPI): JsonObject {
 	return result;
 }
 
+function checkSession(request: JsonObject, ctx: ExtensionContext): void {
+	if (request.expectedSessionId !== undefined && request.expectedSessionId !== ctx.sessionManager.getSessionId()) {
+		throw new RequestError("session_mismatch", "The owning Pi session is no longer active on this socket");
+	}
+}
+
 function sendUserMessage(
 	request: JsonObject,
 	ctx: ExtensionContext,
 	pi: ExtensionAPI,
 ): JsonObject {
+	checkSession(request, ctx);
 	const message = request.message;
 	if (typeof message !== "string")
 		throw new RequestError("bad_request", "message must be a string");

@@ -67,9 +67,10 @@ test("PR call labels and expanded file paths are clickable when this terminal su
     assert.ok(links(prView.raw.collapsed).includes(pr));
     const file = "/tmp/project notes/plan.md";
     const planView = display("save_plan", { title: "Notes", content: "# Notes" }, {
-      content: [{ type: "text", text: "Saved plan" }], details: { plan: { ...plan, path: file } }, isError: false,
+      content: [{ type: "text", text: "Saved plan" }], details: { sessionId: "session-a", plan: { ...plan, path: file } }, isError: false,
     });
     assert.ok(links(planView.raw.expanded).includes("file:///tmp/project%20notes/plan.md"));
+    assert.ok(links(planView.raw.expanded).includes(`http://127.0.0.1:19433/plans/session-a/${plan.id}`));
     const skillView = display("load_skill", { source: "vocabulary" }, {
       content: [{ type: "text", text: skillContent }], details: samples[0].details, isError: false,
     });

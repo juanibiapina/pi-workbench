@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ## [Unreleased]
 
+### Added
+
+- Open saved plan links in a browser and send comments on selected text to Pi.
+
 ### Changed
 
 - Show one-line plan calls; expand a saved plan to open its file or see its ID.
