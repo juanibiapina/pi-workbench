@@ -6,7 +6,7 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ### Fixed
 
-- Keep plan approval visible while scrolling on desktop and mobile.
+- Keep plan approval and comment submission visible while scrolling on desktop and mobile.
 
 ### Added
 

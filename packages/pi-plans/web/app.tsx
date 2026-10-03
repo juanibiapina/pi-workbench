@@ -83,14 +83,17 @@ function Document({ endpoint }: { endpoint: string }) {
   if (!document) return <main className="connection"><p role={error ? "alert" : "status"}>{error || "Opening plan…"}</p></main>;
   return <div className="document-shell">
     {(notice || error) && <div className="notice" role={error ? "alert" : "status"}><p>{error || notice}</p></div>}
-    <section className="plan-actions" aria-label="Plan approval">
-      <button className="approve-plan" onClick={() => void send("approval")} disabled={!implementationMessage.trim() || pending !== null}>{pending === "approval" ? "Sending…" : "Approve plan"}</button>
+    <section className="plan-actions" aria-label="Plan actions">
+      <div className="plan-action-buttons">
+        <button className="approve-plan" onClick={() => void send("approval")} disabled={!implementationMessage.trim() || pending !== null}>{pending === "approval" ? "Sending…" : "Approve plan"}</button>
+        <button className="submit-review" onClick={() => void send("review")} disabled={!annotations.length || pending !== null}>{pending === "review" ? "Submitting…" : `Submit${annotations.length ? ` (${annotations.length})` : ""}`}</button>
+      </div>
       <details><summary>Edit message</summary><div className="implementation-editor"><label htmlFor="implementation-message">Message to Pi</label><textarea id="implementation-message" rows={3} value={implementationMessage} onChange={(event) => setImplementationMessage(event.target.value)} disabled={pending !== null} /></div></details>
     </section>
     <div className="review-layout"><main className="document-body">
       <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => setAnnotations((current) => [...current, annotation])} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={840} />
     </main><aside className="review-comments" aria-label="Plan comments">
-      <div className="comments-heading"><h2>Comments</h2><button onClick={() => void send("review")} disabled={!annotations.length || pending !== null}>{pending === "review" ? "Submitting…" : `Submit${annotations.length ? ` (${annotations.length})` : ""}`}</button></div><AnnotationPanel presentation="embedded" isOpen annotations={annotations} blocks={blocks} selectedId={selected} onSelect={setSelected} onDelete={(id) => { viewer.current?.removeHighlight(id); setAnnotations((current) => current.filter((annotation) => annotation.id !== id)); }} onEdit={(id, updates) => setAnnotations((current) => current.map((annotation) => annotation.id === id ? { ...annotation, ...updates } : annotation))} sharingEnabled={false} /></aside></div>
+      <div className="comments-heading"><h2>Comments</h2></div><AnnotationPanel presentation="embedded" isOpen annotations={annotations} blocks={blocks} selectedId={selected} onSelect={setSelected} onDelete={(id) => { viewer.current?.removeHighlight(id); setAnnotations((current) => current.filter((annotation) => annotation.id !== id)); }} onEdit={(id, updates) => setAnnotations((current) => current.map((annotation) => annotation.id === id ? { ...annotation, ...updates } : annotation))} sharingEnabled={false} /></aside></div>
   </div>;
 }
 createRoot(window.document.getElementById("root")!).render(<ThemeProvider defaultTheme="system"><App /></ThemeProvider>);

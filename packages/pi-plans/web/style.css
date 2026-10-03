@@ -14,8 +14,6 @@ input { caret-color: var(--primary); }
 h1 { font-size: clamp(24px, 3vw, 36px); line-height: 1.2; font-weight: 650; letter-spacing: -.025em; margin: 0 0 12px; overflow-wrap: anywhere; }
 p { line-height: 1.6; }
 .comments-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
-.comments-heading > button { background: var(--foreground); color: var(--background); flex-shrink: 0; }
-.comments-heading > button:hover { opacity: .85; }
 .notice { padding: 16px 24px; background: var(--muted); font-size: 14px; }
 .notice p { margin: 0; }
 .notice button { margin-top: 12px; }
@@ -28,21 +26,25 @@ p { line-height: 1.6; }
 .review-comments h2 { font-size: 16px; font-weight: 600; margin: 0; }
 .review-comments > div { width: 100%; }
 html { scroll-padding-top: 64px; }
-.plan-actions { position: sticky; top: 0; z-index: 60; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; padding: 6px 16px; background: var(--background); border-bottom: 1px solid var(--border); }
+.plan-actions { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 6px 16px; background: var(--background); border-bottom: 1px solid var(--border); }
+.plan-action-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-actions > details { margin-left: auto; }
 .plan-actions button { font-family: inherit; }
 .plan-actions textarea { font: inherit; }
-.approve-plan { justify-self: start; border: 1px solid var(--foreground); border-radius: 6px; background: var(--foreground); color: var(--background); padding: 6px 12px; cursor: pointer; font-size: 13px; line-height: 20px; font-weight: 550; }
-.approve-plan:hover { opacity: .85; }
-.approve-plan:disabled { opacity: .5; cursor: default; }
+.approve-plan, .submit-review { border: 1px solid var(--foreground); border-radius: 6px; background: var(--foreground); color: var(--background); padding: 6px 12px; cursor: pointer; font-size: 13px; line-height: 20px; font-weight: 550; }
+.approve-plan:hover, .submit-review:hover { opacity: .85; }
+.approve-plan:disabled, .submit-review:disabled { opacity: .5; cursor: default; }
 .plan-actions summary { cursor: pointer; font-size: 13px; line-height: 20px; padding-block: 6px; width: fit-content; }
 .implementation-editor { position: absolute; top: 100%; right: 24px; width: min(420px, calc(100% - 48px)); max-height: 50dvh; overflow: auto; padding: 16px; background: var(--background); border: 1px solid var(--border); border-radius: 0 0 8px 8px; }
 .plan-actions label { display: block; font-size: 14px; margin-bottom: 8px; }
 .plan-actions textarea { display: block; width: 100%; resize: vertical; min-height: 80px; max-height: 35dvh; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); padding: 10px; caret-color: var(--primary); }
 textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+@media (max-width: 420px) {
+  html { scroll-padding-top: 104px; }
+}
 @media (max-width: 850px) {
   .review-layout { grid-template-columns: 1fr; }
   .review-comments { border-left: 0; border-top: 1px solid var(--border); }
   .document-body { padding: 8px 0 32px; }
-  .plan-actions { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; padding: 6px 16px; }
   .implementation-editor { right: 16px; width: calc(100% - 32px); }
 }
