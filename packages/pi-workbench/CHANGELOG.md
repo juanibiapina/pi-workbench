@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep plan approval visible while scrolling on desktop and mobile.
+
 ### Added
 
 - Approve a plan from the browser with an editable message to Pi.

@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep plan approval visible while scrolling on desktop and mobile.
+
 ### Added
 
 - Approve a plan from the browser with an editable message to Pi.
