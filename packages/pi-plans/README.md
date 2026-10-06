@@ -20,6 +20,15 @@ This extension adds these tools to Pi's context:
 
 The required session context extension adds `get_session_context`, which lists saved plans and other session data.
 
+## Plan review
+
+When `TYPESAFE_API_KEY` is set in Pi's environment, `save_plan` asks TypeSafe's Jev model about each line of the saved plan. If it finds problems, it adds them to the same tool result. It flags lines that may:
+
+- Build by hand something an existing library or tool already does.
+- Add a component a simpler design could avoid.
+
+Without the key, plans save as before. The review needs Pi 0.99 or later, adds about half a second, and sends the plan text to TypeSafe.
+
 ## Open and review a plan
 
 Start the server in a separate terminal:

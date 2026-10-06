@@ -108,3 +108,23 @@ test("tool failures and partial results never claim success", () => {
   assert.ok(!lines.includes("Loading skill"));
   assert.ok(!lines.includes("✓"));
 });
+
+test("a saved plan with Jev findings shows a count collapsed and the quotes expanded", () => {
+  const review = { model: "jev-1.13.0", scores: {}, findings: [
+    { kind: "existing_tool", line: "Compute the sun with hand-written NOAA equations.", probability: 0.82 },
+    { kind: "simpler_design", line: "Add a log collector process.", probability: 0.73 },
+  ] };
+  const view = display("save_plan", { title: plan.title, content: "# Plan" }, {
+    content: [{ type: "text", text: "Saved plan" }], details: { sessionId: "session-a", plan, review }, isError: false,
+  });
+  const collapsed = view.collapsed.split("\n").filter((line) => line.trim());
+  assert.equal(collapsed.length, 2);
+  assert.ok(collapsed[1].includes("Jev: 2 findings"));
+  const expanded = view.expanded.replace(/\s+/g, " ");
+  assert.ok(expanded.includes("Compute the sun with hand-written NOAA equations."));
+  assert.ok(expanded.includes("May be simpler without this part (0.73)"));
+  const clean = display("save_plan", { title: plan.title, content: "# Plan" }, {
+    content: [{ type: "text", text: "Saved plan" }], details: { sessionId: "session-a", plan, review: { ...review, findings: [] } }, isError: false,
+  });
+  assert.equal(clean.collapsed.split("\n").filter((line) => line.trim()).length, 1);
+});

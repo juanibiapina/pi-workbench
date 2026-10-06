@@ -60,7 +60,7 @@ The socket path appears in the live status from `pi-session-context`.
 
 ### pi-plans
 
-Keeps editable Markdown plans with the session. Plan files live in `<sessionFile>.plans/`. Use the [plan browser](packages/pi-plans#open-and-review-a-plan) to read plans and send comments to Pi.
+Keeps editable Markdown plans with the session. Plan files live in `<sessionFile>.plans/`. Use the [plan browser](packages/pi-plans#open-and-review-a-plan) to read plans and send comments to Pi. With a TypeSafe API key, saved plans get a [Jev review](packages/pi-plans#plan-review).
 
 **Tools:**
 

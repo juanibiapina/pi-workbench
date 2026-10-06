@@ -10,6 +10,7 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ### Added
 
+- Review saved plans with Jev when `TYPESAFE_API_KEY` is set, flagging lines that rebuild existing tools or add avoidable parts.
 - Approve a plan from the browser with an editable message to Pi.
 - Open saved plan links in a browser and send comments on selected text to Pi.
 

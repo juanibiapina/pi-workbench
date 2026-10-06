@@ -6,6 +6,7 @@ import { Type } from "@sinclair/typebox";
 import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
 import { createContributor } from "@juanibiapina/pi-session-context/client";
 import { planUrl } from "./browser-url.ts";
+import { findingLine, formatReview, reviewPlan, type PlanReview } from "./plan-review.ts";
 
 type Plan = { id: string; title: string; path: string };
 const displayPath = (value: string) => value.startsWith(`${homedir()}/`) ? `~${value.slice(homedir().length)}` : value;
@@ -25,7 +26,7 @@ export function register(pi: ExtensionAPI): void {
     name: "save_plan", label: "Save Plan",
     description: "Save a finished Markdown plan to this session and return its editable path. Use ordinary Read and Edit tools for later changes.",
     parameters: Type.Object({ title: Type.String(), content: Type.String() }),
-    async execute(_id, { title, content }, _signal, _update, ctx) {
+    async execute(_id, { title, content }, signal, _update, ctx) {
       if (!title.trim() || !content.trim() || /[\r\n]/.test(title)) throw new Error("Plan title and content must not be blank; title must be one line");
       if (Buffer.byteLength(title, "utf8") > 4096) throw new Error("Plan title exceeds 4096 bytes");
       const attachment = await session.createAttachment(ctx, content, (current, saved) => {
@@ -35,16 +36,21 @@ export function register(pi: ExtensionAPI): void {
         return { plans: [...previous, plan] };
       });
       const plan = { id: attachment.id, title, path: attachment.path };
-      return { content: [{ type: "text", text: `Saved plan "${title}" to session context at ${plan.path} (ID: ${plan.id}).` }], details: { sessionId: ctx.sessionManager.getSessionId(), plan } };
+      const review = await reviewPlan(content, ctx.modelRegistry, signal);
+      const saved = `Saved plan "${title}" to session context at ${plan.path} (ID: ${plan.id}).`;
+      const text = review?.findings.length ? `${saved}\n\n${formatReview(review)}` : saved;
+      return { content: [{ type: "text", text }], details: { sessionId: ctx.sessionManager.getSessionId(), plan, ...(review ? { review } : {}) } };
     },
     renderCall(args, theme) {
       return new TruncatedText(theme.fg("toolTitle", theme.bold("save_plan ")) + theme.fg("accent", args?.title ?? "…"));
     },
     renderResult(result, { expanded, isPartial }, theme, context) {
       if (context.isError) return new Text(theme.fg("error", resultText(result)), 0, 0);
-      if (!expanded) return new Spacer(0);
+      const details = result.details as { sessionId?: string; plan?: Plan; review?: PlanReview } | undefined;
+      const findings = details?.review?.findings ?? [];
+      const count = findings.length ? theme.fg("warning", `Jev: ${findings.length} finding${findings.length === 1 ? "" : "s"}`) : "";
+      if (!expanded) return count ? new Text(count, 0, 0) : new Spacer(0);
       if (isPartial) return new Text(theme.fg("warning", "Saving plan…"), 0, 0);
-      const details = result.details as { sessionId?: string; plan?: Plan } | undefined;
       const plan = details?.plan;
       if (!plan) return new TruncatedText(theme.fg("toolOutput", resultText(result)));
       const shownPath = displayPath(plan.path);
@@ -53,7 +59,8 @@ export function register(pi: ExtensionAPI): void {
         const url = planUrl(details?.sessionId ?? "", plan.id);
         browser = `\n${getCapabilities().hyperlinks ? hyperlink(theme.fg("accent", "Open in browser"), url) : theme.fg("accent", url)}`;
       } catch { /* A bad browser configuration must not affect the Markdown result. */ }
-      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}${browser}`, 0, 0);
+      const review = findings.map((finding) => `\n${theme.fg("warning", `- ${findingLine(finding)}`)}`).join("");
+      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}${browser}${count ? `\n${count}` : ""}${review}`, 0, 0);
     },
   });
   pi.registerTool({
