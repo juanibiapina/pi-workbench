@@ -1,18 +1,17 @@
 {
-  "name": "@juanibiapina/pi-workbench",
+  "name": "@juanibiapina/pi-title",
   "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/juanibiapina/pi-workbench",
-    "directory": "packages/pi-workbench"
+    "directory": "packages/pi-title"
   },
   "files": [
     "src",
     "README.md",
-    "CHANGELOG.md",
-    "bin"
+    "CHANGELOG.md"
   ],
   "pi": {
     "extensions": [
@@ -23,13 +22,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@juanibiapina/pi-session-context": "0.1.1",
-    "@juanibiapina/pi-tmux": "0.1.1",
-    "@juanibiapina/pi-socket": "0.1.1",
-    "@juanibiapina/pi-plans": "0.1.1",
-    "@juanibiapina/pi-github": "0.1.1",
-    "@juanibiapina/pi-skills": "0.1.1",
-    "@juanibiapina/pi-title": "0.1.1"
+    "@sinclair/typebox": "^0.34.0"
   },
   "exports": {
     ".": "./src/index.ts"

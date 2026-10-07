@@ -2,7 +2,7 @@
 
 ## Project Layout
 
-- See [README.md](README.md) for installation options and the seven packages in `packages/`.
+- See [README.md](README.md) for installation options and the eight packages in `packages/`.
 - See [docs/protocol.md](docs/protocol.md) when changing how extensions contribute session data or live status.
 
 ## Checks

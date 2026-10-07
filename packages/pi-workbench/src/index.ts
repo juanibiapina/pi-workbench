@@ -5,6 +5,7 @@ import { register as socket } from "@juanibiapina/pi-socket";
 import { register as plans } from "@juanibiapina/pi-plans";
 import { register as github } from "@juanibiapina/pi-github";
 import { register as skills } from "@juanibiapina/pi-skills";
+import { register as title } from "@juanibiapina/pi-title";
 
 export default function register(pi: ExtensionAPI): void {
   context(pi);
@@ -13,4 +14,5 @@ export default function register(pi: ExtensionAPI): void {
   plans(pi);
   github(pi);
   skills(pi);
+  title(pi);
 }

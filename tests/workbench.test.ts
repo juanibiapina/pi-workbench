@@ -24,7 +24,9 @@ function harness(root: string) {
       on: (channel: string, handler: (value: unknown) => void) => { emitter.on(channel, handler); return () => emitter.off(channel, handler); } },
     on: (event: string, handler: any) => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
     registerTool: (tool: any) => { if (tools.has(tool.name)) throw new Error(`duplicate tool ${tool.name}`); tools.set(tool.name, tool); },
+    registerCommand: () => {},
     getSessionName: () => "Test session",
+    setSessionName: () => {},
     exec: async () => ({ code: 1, stdout: "", stderr: "", killed: false }),
   } as unknown as ExtensionAPI;
   const ctx = (id: string) => ({
@@ -116,7 +118,7 @@ test("aggregate registers every tool once without tmux", async () => {
   try {
     const { pi, ctx, emit, tools, call } = harness(dir);
     aggregate(pi);
-    for (const name of ["get_session_context", "save_plan", "delete_plan", "save_pr", "remove_pr", "load_skill"]) assert.ok(tools.has(name));
+    for (const name of ["get_session_context", "save_plan", "delete_plan", "save_pr", "remove_pr", "load_skill", "set_session_name"]) assert.ok(tools.has(name));
     const context = ctx("aggregate");
     await emit("session_start", context);
     await call("save_pr", context, { url: "https://github.com/o/r/pull/2" });

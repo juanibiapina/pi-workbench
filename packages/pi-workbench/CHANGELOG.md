@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ## [Unreleased]
 
+### Added
+
+- Install the title extension.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

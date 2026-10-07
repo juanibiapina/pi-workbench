@@ -18,7 +18,9 @@ aggregate({
   },
   on: () => {},
   registerTool: (tool: any) => { tools.set(tool.name, tool); },
+  registerCommand: () => {},
   getSessionName: () => "Preview",
+  setSessionName: () => {},
 } as unknown as ExtensionAPI);
 
 function display(name: string, args: object, result: { content: Array<{ type: "text"; text: string }>; details?: unknown; isError: boolean }, width = 72) {

@@ -14,7 +14,7 @@ Run Pi inside tmux to see activity and notifications in tmux. Other features als
 
 ## Components
 
-Alternatively, install only the components you want. If you install a feature on its own, also install `pi-session-context`. Pi must load the provider extension to save that feature's data. Do not install the full workbench and separate components in the same Pi installation.
+Alternatively, install only the components you want. If you install a feature on its own, also install `pi-session-context`, except for `pi-title`. Pi must load the provider extension to save that feature's data. Do not install the full workbench and separate components in the same Pi installation.
 
 | Component | Purpose |
 | --- | --- |
@@ -25,6 +25,7 @@ Alternatively, install only the components you want. If you install a feature on
 | [`pi-plans`](packages/pi-plans) | Per session plans. |
 | [`pi-github`](packages/pi-github) | Per session pull request tracking. |
 | [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
+| [`pi-title`](packages/pi-title) | Names sessions. |
 
 ### pi-session-context
 
@@ -85,3 +86,13 @@ Loads local skills and skills from public GitHub URLs. Records loaded skills wit
 - `load_skill`: Loads a skill by local name or GitHub URL.
 
 Skills invoked with `/skill:<name>` are also tracked.
+
+### pi-title
+
+Names sessions. While a session has no name, it reminds the agent to name it. This component does not need `pi-session-context`.
+
+**Tools:**
+
+- `set_session_name`: Sets the session name.
+
+**Commands:** `/title <name>` sets the session name.
