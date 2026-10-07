@@ -25,6 +25,7 @@ function harness(root: string) {
     on: (event: string, handler: any) => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
     registerTool: (tool: any) => { if (tools.has(tool.name)) throw new Error(`duplicate tool ${tool.name}`); tools.set(tool.name, tool); },
     registerCommand: () => {},
+    registerMessageRenderer: () => {},
     getSessionName: () => "Test session",
     setSessionName: () => {},
     exec: async () => ({ code: 1, stdout: "", stderr: "", killed: false }),
@@ -142,7 +143,7 @@ test("aggregate registers every tool once without tmux", async () => {
     await emit("session_start", context);
     await call("save_pr", context, { url: "https://github.com/o/r/pull/2" });
     const view = await call("get_session_context", context, {});
-    assert.deepEqual(view.details.extensions["pi-github"].data.branches.map((entry: any) => entry.pullRequest.url), ["https://github.com/o/r/pull/2"]);
+    assert.deepEqual(view.details.extensions["pi-github"].data.pullRequests.map((entry: any) => entry.url), ["https://github.com/o/r/pull/2"]);
     await emit("session_shutdown", context);
   } finally {
     if (oldTmux !== undefined) process.env.TMUX = oldTmux;

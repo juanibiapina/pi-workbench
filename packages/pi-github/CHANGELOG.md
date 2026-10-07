@@ -6,11 +6,13 @@ All notable changes to `@juanibiapina/pi-github` are recorded here. This file fo
 
 ### Added
 
-- Track pushed branches with their pull requests and build status automatically.
+- Track builds of pushed commits and their pull requests automatically.
+- Show failed builds of pushed commits in the transcript and tell the agent about them.
 
 ### Changed
 
-- Show the branch and build status of pull requests saved with `save_pr`.
+- Show the branch of pull requests saved with `save_pr`.
+- Stop tracking the branch's build when `remove_pr` removes its pull request.
 - Show one-line pull request calls with clickable links; expand a row to see its full URL.
 
 ## [0.1.1] - 2026-09-27

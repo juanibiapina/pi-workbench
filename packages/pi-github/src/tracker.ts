@@ -1,16 +1,23 @@
 import type { PushEvent } from "@juanibiapina/pi-git";
-import { parsePullRequestUrl, parseRemoteUrl, type Checks, type GitHub, type PullRequest, type PullRequestView } from "./github.ts";
+import { parsePullRequestUrl, parseRemoteUrl, type Checks, type GitHub, type PullRequest } from "./github.ts";
 
-export interface TrackedBranch {
+export interface Build {
   repository: string;
-  branch: string | null;
-  head: { sha: string; pushedAt: string; source: PushEvent["source"] } | null;
-  pullRequest: PullRequest | null;
+  branch: string;
+  sha: string;
+  pushedAt: string;
+  source: PushEvent["source"];
   checks: Checks | null;
 }
 
 export interface GithubSession {
-  branches: TrackedBranch[];
+  builds: Build[];
+  pullRequests: PullRequest[];
+}
+
+export interface BuildFailure {
+  build: Build;
+  pullRequest: PullRequest | null;
 }
 
 export interface SessionData {
@@ -20,7 +27,7 @@ export interface SessionData {
 
 export interface Tracker {
   recordPush(push: PushEvent): Promise<void>;
-  trackPullRequest(url: string): Promise<TrackedBranch>;
+  trackPullRequest(url: string): Promise<PullRequest>;
   untrackPullRequest(url: string): Promise<void>;
   refresh(): Promise<void>;
   touch(): void;
@@ -28,27 +35,31 @@ export interface Tracker {
 }
 
 export function normalize(current: unknown): GithubSession {
-  if (current === undefined || current === null) return { branches: [] };
-  const data = current as { branches?: unknown; pullRequests?: unknown };
-  if (Array.isArray(data.branches)) return { branches: data.branches as TrackedBranch[] };
+  if (current === undefined || current === null) return { builds: [], pullRequests: [] };
+  const data = current as { builds?: unknown; pullRequests?: unknown; branches?: unknown };
+  if (Array.isArray(data.builds)) {
+    return { builds: data.builds as Build[], pullRequests: Array.isArray(data.pullRequests) ? data.pullRequests as PullRequest[] : [] };
+  }
   if (Array.isArray(data.pullRequests) && data.pullRequests.every((url) => typeof url === "string")) {
     return {
-      branches: data.pullRequests.map((url: string) => {
+      builds: [],
+      pullRequests: data.pullRequests.map((url: string) => {
         const { repository, number } = parsePullRequestUrl(url);
-        return { repository, branch: null, head: null, pullRequest: { number, url, title: null, state: null }, checks: null };
+        return { repository, number, url, branch: null, title: null, state: null };
       }),
     };
   }
+  if (Array.isArray(data.branches)) return { builds: [], pullRequests: [] };
   throw new Error("Invalid saved GitHub data");
 }
 
-type Key = { repository: string; branch: string | null; url?: string };
 const NEW_PUSH_MS = 5 * 60_000;
 
-const keyOf = (entry: TrackedBranch): Key => ({ repository: entry.repository, branch: entry.branch, url: entry.pullRequest?.url });
-const matches = (entry: TrackedBranch, key: Key) => key.branch !== null
-  ? entry.repository === key.repository && entry.branch === key.branch
-  : entry.pullRequest?.url === key.url;
+const onBranch = (item: { repository: string; branch: string | null }, repository: string, branch: string) =>
+  item.repository === repository && item.branch === branch;
+const pullRequestOf = (data: GithubSession, build: Build) =>
+  data.pullRequests.find((pr) => onBranch(pr, build.repository, build.branch)) ?? null;
+const finished = (checks: Checks | null) => !!checks && checks.state !== "pending" && checks.state !== "none";
 
 export function createTracker(options: {
   github: GitHub;
@@ -56,8 +67,9 @@ export function createTracker(options: {
   pollIntervalMs?: number;
   idleTimeoutMs?: number;
   now?: () => number;
+  onBuildFailure?: (failure: BuildFailure) => void;
 }): Tracker {
-  const { github, session } = options;
+  const { github, session, onBuildFailure } = options;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 10 * 60_000;
   const now = options.now ?? Date.now;
@@ -66,57 +78,64 @@ export function createTracker(options: {
   let sleeping = false;
   let lastActivity = now();
 
-  const waiting = (entry: TrackedBranch) => entry.checks?.state === "pending" ||
-    (!!entry.head && (!entry.checks || entry.checks.state === "none") && Date.now() - Date.parse(entry.head.pushedAt) < NEW_PUSH_MS);
+  const watched = (data: GithubSession) => (build: Build) => build.checks?.state === "pending" ||
+    (Date.now() - Date.parse(build.pushedAt) < NEW_PUSH_MS && (!finished(build.checks) || !pullRequestOf(data, build)));
   const write = async (change: (data: GithubSession) => GithubSession): Promise<GithubSession> => {
     if (stopped) throw new Error("GitHub tracking stopped");
     const next = normalize(await session.update((current) => change(normalize(current))));
-    if (next.branches.some(waiting)) arm();
+    if (next.builds.some(watched(next))) arm();
     return next;
   };
-  const patch = (key: Key, change: (entry: TrackedBranch) => TrackedBranch) => write((data) => ({
-    branches: data.branches.map((entry) => matches(entry, key) ? change(entry) : entry),
-  }));
   const background = (operation: Promise<unknown>) => { operation.catch(() => undefined); };
 
-  const applyView = (key: Key, found: PullRequestView) => write((data) => {
-    const target = data.branches.find((entry) => matches(entry, key));
-    if (!target) return data;
-    const rest = data.branches.filter((entry) => entry !== target);
-    const twin = rest.find((entry) => entry.repository === found.repository && entry.branch === found.branch);
-    const merged: TrackedBranch = { ...(twin ?? target), repository: found.repository, branch: found.branch, pullRequest: found.pullRequest };
-    return { branches: [...rest.filter((entry) => entry !== twin), merged] };
+  const savePullRequest = (found: PullRequest, url = found.url) => write((data) => {
+    let placed = false;
+    const pullRequests = data.pullRequests.flatMap((pr) => {
+      if (pr.url !== url && pr.url !== found.url) return [pr];
+      if (placed) return [];
+      placed = true;
+      return [found];
+    });
+    if (!placed) {
+      if (!found.branch || !data.builds.some((build) => onBranch(build, found.repository, found.branch!))) return data;
+      pullRequests.push(found);
+    }
+    return { ...data, pullRequests };
   });
-  const applyChecks = (key: Key, checks: Checks) => patch(key, (entry) => ({ ...entry, checks }));
 
-  const resolve = async (entry: TrackedBranch): Promise<void> => {
-    let key = keyOf(entry);
-    let sha = entry.head?.sha ?? null;
+  const writeChecks = async (repository: string, branch: string, checks: Checks) => {
+    let failed = false;
+    const next = await write((data) => {
+      const target = data.builds.find((build) => onBranch(build, repository, branch));
+      failed = false;
+      if (!target || target.sha !== checks.sha) return data;
+      failed = checks.state === "failure" && target.checks?.state !== "failure";
+      return { ...data, builds: data.builds.map((build) => build === target ? { ...build, checks } : build) };
+    });
+    if (!failed || !onBuildFailure) return;
+    const build = next.builds.find((item) => onBranch(item, repository, branch));
+    if (!build) return;
+    try { onBuildFailure({ build, pullRequest: pullRequestOf(next, build) }); } catch {}
+  };
+
+  const checkBuild = async (build: Build) => {
+    try { await writeChecks(build.repository, build.branch, await github.readChecks(build.repository, build.sha)); } catch {}
+  };
+  const findPullRequest = async (build: Build) => {
     try {
-      const found = entry.pullRequest
-        ? await github.viewPullRequest(entry.pullRequest.url)
-        : entry.branch ? await github.findPullRequest(entry.repository, entry.branch) : null;
-      if (found) {
-        await applyView(key, found);
-        key = { repository: found.repository, branch: found.branch };
-        sha = found.headSha;
-      }
+      const found = await github.findPullRequest(build.repository, build.branch);
+      if (found) await savePullRequest(found);
     } catch {}
-    if (!sha) return;
-    try { await applyChecks(key, await github.readChecks(key.repository, sha)); } catch {}
   };
 
   const poll = async () => {
     if (stopped) return;
     const data = normalize(await session.read());
-    const pending = data.branches.filter(waiting);
-    await Promise.all(pending.map(async (entry) => {
-      const sha = entry.checks?.sha ?? entry.head!.sha;
-      try {
-        const checks = await github.readChecks(entry.repository, sha);
-        await patch(keyOf(entry), (current) => (current.checks?.sha ?? current.head?.sha) === sha ? { ...current, checks } : current);
-      } catch {}
-    }));
+    const pending = data.builds.filter(watched(data));
+    await Promise.all(pending.flatMap((build) => [
+      ...(finished(build.checks) ? [] : [checkBuild(build)]),
+      ...(pullRequestOf(data, build) ? [] : [findPullRequest(build)]),
+    ]));
     if (pending.length) arm();
   };
   function arm() {
@@ -133,44 +152,53 @@ export function createTracker(options: {
     async recordPush(push) {
       const repository = parseRemoteUrl(push.remoteUrl);
       if (!repository || stopped) return;
-      const key: Key = { repository, branch: push.branch };
-      const head = { sha: push.after, pushedAt: new Date(push.pushedAt).toISOString(), source: push.source };
-      await write((data) => data.branches.some((entry) => matches(entry, key))
-        ? { branches: data.branches.map((entry) => matches(entry, key) ? { ...entry, head, checks: entry.checks?.sha === head.sha ? entry.checks : null } : entry) }
-        : { branches: [...data.branches, { repository, branch: push.branch, head, pullRequest: null, checks: null }] });
-      const [found, checks] = await Promise.allSettled([github.findPullRequest(repository, push.branch), github.readChecks(repository, push.after)]);
-      if (found.status === "fulfilled") {
-        if (found.value) await applyView(key, found.value);
-        else await patch(key, (entry) => ({ ...entry, pullRequest: null }));
-      }
-      if (checks.status === "fulfilled") await patch(key, (entry) => entry.head?.sha === push.after ? { ...entry, checks: checks.value } : entry);
+      const { branch, after: sha } = push;
+      await write((data) => {
+        const existing = data.builds.find((build) => onBranch(build, repository, branch));
+        const build: Build = {
+          repository, branch, sha, pushedAt: new Date(push.pushedAt).toISOString(), source: push.source,
+          checks: existing?.sha === sha ? existing.checks : null,
+        };
+        return { ...data, builds: existing ? data.builds.map((item) => item === existing ? build : item) : [...data.builds, build] };
+      });
+      const [found, checks] = await Promise.allSettled([github.findPullRequest(repository, branch), github.readChecks(repository, sha)]);
+      if (found.status === "fulfilled" && found.value) await savePullRequest(found.value);
+      if (checks.status === "fulfilled") await writeChecks(repository, branch, checks.value);
     },
     async trackPullRequest(url) {
       const { repository, number } = parsePullRequestUrl(url);
-      let key: Key = { repository, branch: null, url };
-      const saved = await write((data) => data.branches.some((entry) => entry.pullRequest?.url === url) ? data
-        : { branches: [...data.branches, { repository, branch: null, head: null, pullRequest: { number, url, title: null, state: null }, checks: null }] });
-      const existing = saved.branches.find((entry) => entry.pullRequest?.url === url)!;
-      key = keyOf(existing);
+      const initial: PullRequest = { repository, number, url, branch: null, title: null, state: null };
+      await write((data) => data.pullRequests.some((pr) => pr.url === url) ? data : { ...data, pullRequests: [...data.pullRequests, initial] });
+      let saved = url;
       try {
         const found = await github.viewPullRequest(url);
-        await applyView(key, found);
-        key = { repository: found.repository, branch: found.branch };
-        await applyChecks(key, await github.readChecks(found.repository, found.headSha));
+        await savePullRequest(found, url);
+        saved = found.url;
       } catch {}
-      const data = normalize(await session.read());
-      return data.branches.find((entry) => entry.pullRequest?.url === url) ?? existing;
+      return normalize(await session.read()).pullRequests.find((pr) => pr.url === saved) ?? initial;
     },
     async untrackPullRequest(url) {
       await write((data) => {
-        if (!data.branches.some((entry) => entry.pullRequest?.url === url)) throw new Error(`PR not found in this session: ${url}`);
-        return { branches: data.branches.filter((entry) => entry.pullRequest?.url !== url) };
+        const target = data.pullRequests.find((pr) => pr.url === url);
+        if (!target) throw new Error(`PR not found in this session: ${url}`);
+        return {
+          builds: data.builds.filter((build) => !(target.branch && onBranch(build, target.repository, target.branch))),
+          pullRequests: data.pullRequests.filter((pr) => pr !== target),
+        };
       });
     },
     async refresh() {
       if (stopped) return;
       const data = normalize(await session.read());
-      await Promise.all(data.branches.map(resolve));
+      await Promise.all([
+        ...data.pullRequests.map(async (pr) => {
+          try { await savePullRequest(await github.viewPullRequest(pr.url), pr.url); } catch {}
+        }),
+        ...data.builds.map(async (build) => {
+          if (!pullRequestOf(data, build)) await findPullRequest(build);
+          await checkBuild(build);
+        }),
+      ]);
     },
     touch() {
       lastActivity = now();

@@ -4,17 +4,12 @@ export type PullRequestState = "open" | "closed" | "merged";
 export type CheckState = "pending" | "success" | "failure" | "skipped";
 
 export interface PullRequest {
+  repository: string;
   number: number;
   url: string;
+  branch: string | null;
   title: string | null;
   state: PullRequestState | null;
-}
-
-export interface PullRequestView {
-  repository: string;
-  branch: string;
-  headSha: string;
-  pullRequest: PullRequest;
 }
 
 export interface Checks {
@@ -25,8 +20,8 @@ export interface Checks {
 }
 
 export interface GitHub {
-  findPullRequest(repository: string, branch: string): Promise<PullRequestView | null>;
-  viewPullRequest(url: string): Promise<PullRequestView>;
+  findPullRequest(repository: string, branch: string): Promise<PullRequest | null>;
+  viewPullRequest(url: string): Promise<PullRequest>;
   readChecks(repository: string, sha: string): Promise<Checks>;
 }
 
@@ -48,14 +43,11 @@ export function summarize(sha: string, runs: Checks["runs"], updatedAt: string):
   return { sha, state, updatedAt, runs };
 }
 
-type GhPullRequest = { number: number; url: string; title: string; state: string; headRefName: string; headRefOid: string };
-const fields = "number,url,title,state,headRefName,headRefOid";
+type GhPullRequest = { number: number; url: string; title: string; state: string; headRefName: string };
+const fields = "number,url,title,state,headRefName";
 
-function view(repository: string, item: GhPullRequest): PullRequestView {
-  return {
-    repository, branch: item.headRefName, headSha: item.headRefOid,
-    pullRequest: { number: item.number, url: item.url, title: item.title, state: item.state.toLowerCase() as PullRequestState },
-  };
+function view(repository: string, item: GhPullRequest): PullRequest {
+  return { repository, number: item.number, url: item.url, branch: item.headRefName, title: item.title, state: item.state.toLowerCase() as PullRequestState };
 }
 
 function runState(status: string, conclusion: string | null): CheckState {

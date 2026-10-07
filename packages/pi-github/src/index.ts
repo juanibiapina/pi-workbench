@@ -1,13 +1,27 @@
 import { Type } from "@sinclair/typebox";
-import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
+import { Box, getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { PUSH_EVENT, type PushEvent } from "@juanibiapina/pi-git";
 import { createContributor } from "@juanibiapina/pi-session-context/client";
 import { createGhAdapter, type GitHub } from "./github.ts";
-import { createTracker, type Tracker } from "./tracker.ts";
+import { createTracker, type BuildFailure, type Tracker } from "./tracker.ts";
 
-export { createTracker, normalize, type GithubSession, type SessionData, type TrackedBranch, type Tracker } from "./tracker.ts";
-export { createGhAdapter, parseRemoteUrl, summarize, type Checks, type GitHub, type PullRequest, type PullRequestView } from "./github.ts";
+export { createTracker, normalize, type Build, type BuildFailure, type GithubSession, type SessionData, type Tracker } from "./tracker.ts";
+export { createGhAdapter, parseRemoteUrl, summarize, type Checks, type GitHub, type PullRequest } from "./github.ts";
+
+export const BUILD_FAILURE_MESSAGE = "pi-github-build-failure";
+
+const failedRuns = (build: BuildFailure["build"]) => build.checks?.runs.filter((run) => run.state === "failure") ?? [];
+const linkUrl = (label: string, url: string) => url && getCapabilities().hyperlinks ? hyperlink(label, url) : label;
+
+function describeFailure({ build, pullRequest }: BuildFailure): string {
+  const failed = failedRuns(build);
+  return [
+    `The build failed for ${build.repository} branch ${build.branch} at commit ${build.sha.slice(0, 7)}, pushed in this session${pullRequest ? ` (PR ${pullRequest.url})` : ""}.`,
+    "Failed checks:",
+    ...failed.map((run) => run.url ? `- ${run.name}: ${run.url}` : `- ${run.name}`),
+  ].join("\n");
+}
 
 function canonical(value: string): string {
   let url: URL;
@@ -42,7 +56,7 @@ export interface Options {
 const REFRESH_INTERVAL_MS = 60_000;
 
 export function register(pi: ExtensionAPI, options: Options = {}): void {
-  const session = createContributor(pi, "pi-github", 2);
+  const session = createContributor(pi, "pi-github");
   const github = options.github ?? createGhAdapter(pi);
   let tracker: Tracker | undefined;
   let lastRefresh = 0;
@@ -50,6 +64,9 @@ export function register(pi: ExtensionAPI, options: Options = {}): void {
     tracker?.stop();
     tracker = createTracker({
       github, pollIntervalMs: options.pollIntervalMs, idleTimeoutMs: options.idleTimeoutMs,
+      onBuildFailure: (failure) => {
+        pi.sendMessage({ customType: BUILD_FAILURE_MESSAGE, content: describeFailure(failure), display: true, details: failure });
+      },
       session: {
         read: async () => (await session.getSession(ctx)).extensions["pi-github"]?.data,
         update: async (change) => (await session.updateSession(ctx, change)).extensions["pi-github"]?.data,
@@ -61,6 +78,18 @@ export function register(pi: ExtensionAPI, options: Options = {}): void {
     lastRefresh = Date.now();
     active.refresh().catch(() => undefined);
   };
+  pi.registerMessageRenderer<BuildFailure>(BUILD_FAILURE_MESSAGE, (message, { expanded, outputPad }, theme) => {
+    if (!message.details) return undefined;
+    const { build, pullRequest } = message.details;
+    const box = new Box(outputPad, 0);
+    box.addChild(new TruncatedText(theme.fg("error", theme.bold("✗ Build failed ")) +
+      theme.fg("accent", `${build.repository} ${build.branch}`) + theme.fg("dim", ` ${build.sha.slice(0, 7)}`) +
+      (pullRequest ? " " + linkPr(theme.fg("accent", prLabel(pullRequest.url)), pullRequest.url) : "")));
+    if (expanded) {
+      for (const run of failedRuns(build)) box.addChild(new TruncatedText(theme.fg("toolOutput", "  ") + linkUrl(theme.fg("error", run.name), run.url)));
+    }
+    return box;
+  });
   pi.on("session_start", (_event, ctx) => { refresh(start(ctx)); });
   pi.on("before_agent_start", () => {
     if (!tracker) return;

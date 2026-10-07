@@ -23,7 +23,7 @@ Alternatively, install only the components you want. Each component's README lis
 | [`pi-tmux`](packages/pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
 | [`pi-socket`](packages/pi-socket) | Lets local programs control a running Pi session. |
 | [`pi-plans`](packages/pi-plans) | Per session plans. |
-| [`pi-github`](packages/pi-github) | Per session tracking of pushed branches, pull requests, and builds. |
+| [`pi-github`](packages/pi-github) | Per session tracking of builds of pushed commits and their pull requests. |
 | [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
 | [`pi-title`](packages/pi-title) | Names sessions. |
 | [`pi-git`](packages/pi-git) | Detects git pushes for other extensions. |
@@ -71,12 +71,12 @@ Keeps editable Markdown plans with the session. Plan files live in `<sessionFile
 
 ### pi-github
 
-Tracks branches pushed during the session, with their pull requests and build status. Build status updates while builds run. Needs `gh` installed and logged in.
+Tracks builds of commits pushed during the session and their pull requests. Build status updates while builds run, and build failures appear in the transcript and reach the agent. Needs `gh` installed and logged in.
 
 **Tools:**
 
 - `save_pr`: Tracks a pull request the session did not push.
-- `remove_pr`: Stops tracking a pull request.
+- `remove_pr`: Stops tracking a pull request and the build of its branch.
 
 ### pi-skills
 
