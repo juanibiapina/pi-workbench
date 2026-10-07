@@ -12,4 +12,4 @@
 ## Releases
 
 - Follow [docs/releases.md](docs/releases.md) for package versioning and publishing.
-- Record user-visible changes in the affected package's `packages/<name>/CHANGELOG.md`. The `pi-workbench` changelog covers the bundled installation.
+- Record user-visible changes in the affected package's `packages/<name>/CHANGELOG.md`. See [docs/releases.md](docs/releases.md#package-changelogs) for what belongs in the `pi-workbench` changelog.

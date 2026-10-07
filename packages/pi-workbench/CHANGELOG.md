@@ -4,20 +4,6 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ## [Unreleased]
 
-### Fixed
-
-- Keep plan approval and comment submission visible while scrolling on desktop and mobile.
-
-### Added
-
-- Review saved plans with Jev when `TYPESAFE_API_KEY` is set.
-- Approve a plan from the browser with an editable message to Pi.
-- Open and review saved plans in a local browser. Review comments are sent back to the corresponding pi session.
-
-### Changed
-
-- Show one-line calls for skill, session context, plan, and pull request tools, with clickable links in expanded details.
-
 ## [0.1.1] - 2026-09-27
 
 ### Added
