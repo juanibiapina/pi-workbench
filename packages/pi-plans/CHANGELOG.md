@@ -7,6 +7,7 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 ### Fixed
 
 - Keep plan approval and comment submission visible while scrolling on desktop and mobile.
+- Show approval and comment results next to the plan buttons at any scroll position, and mark the plan approved after sending.
 
 ### Added
 

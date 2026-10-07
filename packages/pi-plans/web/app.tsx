@@ -34,6 +34,8 @@ function Document({ endpoint }: { endpoint: string }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState<"review" | "approval" | null>(null);
   const [implementationMessage, setImplementationMessage] = useState("Implement");
+  const [approved, setApproved] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const sending = useRef(false);
   const viewer = useRef<ViewerHandle>(null);
   const storageKey = `pi-plan-review:${endpoint}`;
@@ -72,26 +74,32 @@ function Document({ endpoint }: { endpoint: string }) {
     }
     if (!message.trim()) return;
     sending.current = true; setPending(action); setError(""); setNotice("");
+    if (action === "approval") setEditorOpen(false);
     try {
       const result = await request<MessageResult>(`${endpoint}/messages`, { message });
-      if (action === "review") { setAnnotations([]); viewer.current?.clearAllHighlights(); }
-      const label = action === "review" ? "Review" : "Implementation message";
-      setNotice(result.delivery === "followUp" ? `${label} queued for Pi's next turn` : `${label} sent to Pi`);
+      const queued = result.delivery === "followUp";
+      if (action === "review") {
+        setAnnotations([]); viewer.current?.clearAllHighlights();
+        setNotice(queued ? "Comments queued for Pi's next turn" : "Comments sent to Pi");
+      } else {
+        setApproved(true);
+        setNotice(queued ? "Plan approved. Pi will read it after the current turn" : "Plan approved and sent to Pi");
+      }
     } catch (err) { setError((err as Error).message); }
     finally { sending.current = false; setPending(null); }
   };
   if (!document) return <main className="connection"><p role={error ? "alert" : "status"}>{error || "Opening plan…"}</p></main>;
   return <div className="document-shell">
-    {(notice || error) && <div className="notice" role={error ? "alert" : "status"}><p>{error || notice}</p></div>}
     <section className="plan-actions" aria-label="Plan actions">
       <div className="plan-action-buttons">
-        <button className="approve-plan" onClick={() => void send("approval")} disabled={!implementationMessage.trim() || pending !== null}>{pending === "approval" ? "Sending…" : "Approve plan"}</button>
+        <button className="approve-plan" data-approved={approved || undefined} onClick={() => void send("approval")} disabled={approved || !implementationMessage.trim() || pending !== null}>{pending === "approval" ? "Sending…" : approved ? "✓ Approved" : "Approve plan"}</button>
         <button className="submit-review" onClick={() => void send("review")} disabled={!annotations.length || pending !== null}>{pending === "review" ? "Submitting…" : `Submit${annotations.length ? ` (${annotations.length})` : ""}`}</button>
       </div>
-      <details><summary>Edit message</summary><div className="implementation-editor"><label htmlFor="implementation-message">Message to Pi</label><textarea id="implementation-message" rows={3} value={implementationMessage} onChange={(event) => setImplementationMessage(event.target.value)} disabled={pending !== null} /></div></details>
+      <p className="plan-result" role={error ? "alert" : "status"} data-kind={error ? "error" : notice ? "success" : undefined}>{error || notice}</p>
+      <details open={editorOpen} onToggle={(event) => setEditorOpen(event.currentTarget.open)}><summary>Edit message</summary><div className="implementation-editor"><label htmlFor="implementation-message">Message to Pi</label><textarea id="implementation-message" rows={3} value={implementationMessage} onChange={(event) => { setImplementationMessage(event.target.value); setApproved(false); setNotice(""); }} disabled={pending !== null} /></div></details>
     </section>
     <div className="review-layout"><main className="document-body">
-      <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => setAnnotations((current) => [...current, annotation])} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={840} />
+      <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => { setNotice(""); setAnnotations((current) => [...current, annotation]); }} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={840} />
     </main><aside className="review-comments" aria-label="Plan comments">
       <div className="comments-heading"><h2>Comments</h2></div><AnnotationPanel presentation="embedded" isOpen annotations={annotations} blocks={blocks} selectedId={selected} onSelect={setSelected} onDelete={(id) => { viewer.current?.removeHighlight(id); setAnnotations((current) => current.filter((annotation) => annotation.id !== id)); }} onEdit={(id, updates) => setAnnotations((current) => current.map((annotation) => annotation.id === id ? { ...annotation, ...updates } : annotation))} sharingEnabled={false} /></aside></div>
   </div>;
