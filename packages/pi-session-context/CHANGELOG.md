@@ -8,6 +8,10 @@ All notable changes to `@juanibiapina/pi-session-context` are recorded here. Thi
 
 - Show a one-line session context call; expand it to open the context file and attachments.
 
+### Fixed
+
+- Fix opening Pi without chatting leaving an empty context file behind.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

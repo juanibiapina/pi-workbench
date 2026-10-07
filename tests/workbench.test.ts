@@ -105,6 +105,25 @@ test("invalid legacy data remains intact instead of being migrated", async () =>
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
+test("a session leaves no context file until a contributor writes", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "pi-unsaved-"));
+  try {
+    const { pi, ctx, emit, call } = harness(dir);
+    const notes = createContributor(pi, "example.notes");
+    provider(pi, { dataDir: dir });
+    const context = ctx("fresh");
+    const contextPath = path.join(dir, "fresh.jsonl.context.json");
+    await emit("session_start", context);
+    await emit("agent_start", context);
+    await emit("agent_settled", context);
+    assert.deepEqual((await call("get_session_context", context, {})).details.extensions, {});
+    await assert.rejects(stat(contextPath), { code: "ENOENT" });
+    await notes.putSession(context, { items: ["one"] });
+    assert.deepEqual(JSON.parse(await readFile(contextPath, "utf8")).extensions["example.notes"].data, { items: ["one"] });
+    await emit("session_shutdown", context);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
 test("a feature alone reports a missing provider instead of writing", async () => {
   const { pi, ctx, call } = harness(tmpdir());
   github(pi);

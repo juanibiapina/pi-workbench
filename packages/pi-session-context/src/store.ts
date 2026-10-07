@@ -87,10 +87,7 @@ export class Store {
     try { text = await readFile(file, "utf8"); }
     catch (error) {
       if (!missing(error)) throw error;
-      const empty: SessionSnapshot = { version: 2, sessionId: id, extensions: {} };
-      try { await writeFile(file, `${JSON.stringify(empty, null, 2)}\n`, { mode: 0o600, flag: "wx" }); }
-      catch (creationError) { if ((creationError as NodeJS.ErrnoException)?.code !== "EEXIST") throw creationError; }
-      text = await readFile(file, "utf8");
+      return { version: 2, sessionId: id, extensions: {} };
     }
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { throw new Error(`Could not read Pi session context ${file}`); }
