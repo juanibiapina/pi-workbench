@@ -8,6 +8,8 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 - Keep plan approval and comment submission visible while scrolling on desktop and mobile.
 - Show approval and comment results next to the plan buttons at any scroll position, and mark the plan approved after sending.
+- Flag hand-built work that a plan states as a decision or rejected alternative, and flag fewer lines that reject hand-built options or adopt an existing tool.
+- Show the Jev review result on every saved plan, including no findings and the reason a review failed.
 
 ### Added
 

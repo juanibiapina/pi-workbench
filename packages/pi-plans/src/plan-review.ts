@@ -5,7 +5,9 @@ export type Classifier = Pick<Registry, "findOfType" | "classify">;
 type Questions = Parameters<Registry["classify"]>[1]["questions"];
 
 export type Finding = { kind: "existing_tool" | "simpler_design"; line: string; probability: number };
-export type PlanReview = { model: string; findings: Finding[]; scores: Record<string, Record<string, number>> };
+export type PlanReview =
+  | { model: string; findings: Finding[]; scores: Record<string, Record<string, number>> }
+  | { error: string };
 
 const TIMEOUT_MS = 5000;
 const MAX_LINES = 250;
@@ -15,15 +17,15 @@ const QUESTIONS_PER_CALL = 120;
 const WORK = "proposes_work";
 const YES_NO = { true: "Yes", false: "No" };
 const QUESTIONS = {
-  hand_built: "Does this line describe writing something by hand that an existing library, tool, package, or platform feature already provides?",
-  from_scratch: "Does this line describe implementing a known algorithm, format, protocol, or parser from scratch?",
+  hand_built: "Does this line choose to write something by hand that an existing library, tool, package, or platform feature already provides? Answer No when the line rejects or only mentions the hand-built option.",
+  from_scratch: "Does this line choose to implement a known algorithm, format, protocol, or parser from scratch? Answer No when the line rejects or only mentions doing so.",
   adopts_existing: "Does this line itself propose using an existing library, tool, package, or platform feature?",
   avoidable_part: "Does this line add a component (process, service, cache, protocol, file format, configuration section, or abstraction) that a simpler design could avoid?",
 };
 type SetName = keyof typeof QUESTIONS;
 
 const RULES: Array<{ kind: Finding["kind"]; threshold: number; probability: (score: (set: SetName) => number) => number }> = [
-  { kind: "existing_tool", threshold: 0.6, probability: (s) => s("adopts_existing") >= 0.9 ? 0 : Math.max(s("hand_built"), s("from_scratch")) },
+  { kind: "existing_tool", threshold: 0.6, probability: (s) => s("adopts_existing") >= 0.8 ? 0 : Math.max(s("hand_built"), s("from_scratch")) },
   { kind: "simpler_design", threshold: 0.7, probability: (s) => s("avoidable_part") },
 ];
 
@@ -55,7 +57,10 @@ const instructions = (line: string, question: string) => `Line: ${JSON.stringify
 const KIND = {
   type: "choice" as const,
   question: "What does this line do in the plan?",
-  criteria: { [WORK]: "Says something to build, change, add, remove, or configure.", other: "Context, evidence, verification, exclusions, or process notes." },
+  criteria: {
+    [WORK]: "Says something to build, change, add, remove, or configure, or decides how to build it, including an alternative it rejects and what it does instead.",
+    other: "Background, evidence, tests, acceptance checks, work left out of scope, or process notes.",
+  },
 };
 
 function chunks<T>(items: T[], size: number): T[][] {
@@ -80,13 +85,16 @@ async function askLines(classifier: Classifier, model: Model, plan: string, line
   return { values, model: result.model };
 }
 
-export async function reviewPlan(content: string, classifier: Classifier, signal?: AbortSignal): Promise<PlanReview | undefined> {
+const MAX_ERROR_CHARS = 120;
+
+export async function reviewPlan(content: string, classifier: Classifier, signal?: AbortSignal, timeoutMs = TIMEOUT_MS): Promise<PlanReview | undefined> {
+  if (!process.env.TYPESAFE_API_KEY || typeof classifier?.classify !== "function") return undefined;
+  const model = classifier.findOfType("classifier", "typesafe", "jev-latest");
+  const lines = planLines(content);
+  if (!model || !lines.length) return undefined;
+  const timeout = AbortSignal.timeout(timeoutMs);
   try {
-    if (!process.env.TYPESAFE_API_KEY || typeof classifier?.classify !== "function") return undefined;
-    const model = classifier.findOfType("classifier", "typesafe", "jev-latest");
-    const lines = planLines(content);
-    if (!model || !lines.length) return undefined;
-    const deadline = signal ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS);
+    const deadline = signal ? AbortSignal.any([signal, timeout]) : timeout;
     const sets: Record<string, (line: string) => Questions[string]> = {
       kind: (line) => ({ type: KIND.type, instructions: instructions(line, KIND.question), criteria: KIND.criteria }),
       ...Object.fromEntries(Object.entries(QUESTIONS).map(([name, question]) =>
@@ -104,9 +112,18 @@ export async function reviewPlan(content: string, classifier: Classifier, signal
       .sort((a, b) => b.probability - a.probability)
       .slice(0, MAX_FINDINGS));
     return { model: answers[0].model, findings, scores };
-  } catch {
-    return undefined;
+  } catch (error) {
+    if (signal?.aborted) return undefined;
+    if (timeout.aborted) return { error: "timed out" };
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: message.replace(/\s+/g, " ").trim().slice(0, MAX_ERROR_CHARS) || "unknown error" };
   }
+}
+
+export function reviewStatus(review: PlanReview): string {
+  if ("error" in review) return `Jev: review failed (${review.error})`;
+  const count = review.findings.length;
+  return count ? `Jev: ${count} finding${count === 1 ? "" : "s"}` : "Jev: no findings";
 }
 
 const quote = (line: string) => {
@@ -118,7 +135,7 @@ export function findingLine(finding: Finding): string {
   return `${MESSAGES[finding.kind].label} (${finding.probability.toFixed(2)}): "${quote(finding.line)}"`;
 }
 
-export function formatReview(review: PlanReview): string {
+export function formatReview(review: Extract<PlanReview, { findings: Finding[] }>): string {
   return [
     "Jev plan review:",
     ...review.findings.flatMap((finding) => [`- ${findingLine(finding)}`, `  ${MESSAGES[finding.kind].advice}`]),

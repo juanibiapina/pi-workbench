@@ -6,7 +6,7 @@ import { Type } from "@sinclair/typebox";
 import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
 import { createContributor } from "@juanibiapina/pi-session-context/client";
 import { planUrl } from "./browser-url.ts";
-import { findingLine, formatReview, reviewPlan, type PlanReview } from "./plan-review.ts";
+import { findingLine, formatReview, reviewPlan, reviewStatus, type PlanReview } from "./plan-review.ts";
 
 type Plan = { id: string; title: string; path: string };
 const displayPath = (value: string) => value.startsWith(`${homedir()}/`) ? `~${value.slice(homedir().length)}` : value;
@@ -38,7 +38,7 @@ export function register(pi: ExtensionAPI): void {
       const plan = { id: attachment.id, title, path: attachment.path };
       const review = await reviewPlan(content, ctx.modelRegistry, signal);
       const saved = `Saved plan "${title}" to session context at ${plan.path} (ID: ${plan.id}).`;
-      const text = review?.findings.length ? `${saved}\n\n${formatReview(review)}` : saved;
+      const text = review && "findings" in review && review.findings.length ? `${saved}\n\n${formatReview(review)}` : saved;
       return { content: [{ type: "text", text }], details: { sessionId: ctx.sessionManager.getSessionId(), plan, ...(review ? { review } : {}) } };
     },
     renderCall(args, theme) {
@@ -47,8 +47,9 @@ export function register(pi: ExtensionAPI): void {
     renderResult(result, { expanded, isPartial }, theme, context) {
       if (context.isError) return new Text(theme.fg("error", resultText(result)), 0, 0);
       const details = result.details as { sessionId?: string; plan?: Plan; review?: PlanReview } | undefined;
-      const findings = details?.review?.findings ?? [];
-      const count = findings.length ? theme.fg("warning", `Jev: ${findings.length} finding${findings.length === 1 ? "" : "s"}`) : "";
+      const review = details?.review;
+      const findings = review && "findings" in review ? review.findings : [];
+      const count = review ? theme.fg(findings.length || "error" in review ? "warning" : "muted", reviewStatus(review)) : "";
       if (!expanded) return count ? new Text(count, 0, 0) : new Spacer(0);
       if (isPartial) return new Text(theme.fg("warning", "Saving plan…"), 0, 0);
       const plan = details?.plan;
@@ -59,8 +60,8 @@ export function register(pi: ExtensionAPI): void {
         const url = planUrl(details?.sessionId ?? "", plan.id);
         browser = `\n${getCapabilities().hyperlinks ? hyperlink(theme.fg("accent", "Open in browser"), url) : theme.fg("accent", url)}`;
       } catch { /* A bad browser configuration must not affect the Markdown result. */ }
-      const review = findings.map((finding) => `\n${theme.fg("warning", `- ${findingLine(finding)}`)}`).join("");
-      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}${browser}${count ? `\n${count}` : ""}${review}`, 0, 0);
+      const quotes = findings.map((finding) => `\n${theme.fg("warning", `- ${findingLine(finding)}`)}`).join("");
+      return new Text(`${theme.fg("muted", `ID: ${plan.id}`)}\n${theme.fg("muted", "Path: ")}${linkPath(theme.fg("accent", shownPath), plan.path)}${browser}${count ? `\n${count}` : ""}${quotes}`, 0, 0);
     },
   });
   pi.registerTool({

@@ -20,7 +20,7 @@ The required session context extension adds `get_session_context`, which lists s
 
 ## Plan review
 
-When `TYPESAFE_API_KEY` is set in Pi's environment, `save_plan` asks TypeSafe's Jev model about each line of the saved plan. If it finds problems, it adds them to the same tool result. It flags lines that may:
+When `TYPESAFE_API_KEY` is set in Pi's environment, `save_plan` asks TypeSafe's Jev model about each line of the saved plan. The saved plan shows the result: the number of findings, no findings, or why the review failed. Findings are also added to the tool result Pi reads. Jev flags lines that may:
 
 - Build by hand something an existing library or tool already does.
 - Add a component a simpler design could avoid.

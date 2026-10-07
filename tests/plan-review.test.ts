@@ -7,6 +7,7 @@ import test from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { register as provider } from "../packages/pi-session-context/src/index.ts";
 import { register as plans } from "../packages/pi-plans/src/index.ts";
+import { reviewPlan } from "../packages/pi-plans/src/plan-review.ts";
 
 type Answer = (question: string, line: string) => number | string;
 type Call = { questions: Record<string, any>; signal?: AbortSignal };
@@ -86,7 +87,7 @@ async function withSession(registry: unknown, run: (save: ReturnType<typeof setu
 
 const handBuilt: Answer = (question, line) => {
   if (question.includes("What does this line do")) return "proposes_work";
-  if (question.includes("writing something by hand") && line === HAND_BUILT) return 0.8;
+  if (question.includes("something by hand") && line === HAND_BUILT) return 0.8;
   return 0.1;
 };
 
@@ -152,13 +153,29 @@ test("a component a simpler design could avoid is reported from 0.7", async () =
   });
 });
 
-test("a failed, aborted, unavailable, or unsupported Jev keeps the normal save result", async () => {
+const stalledClassify = (call: Call) => new Promise((resolve) => call.signal!.addEventListener("abort", () => resolve({ answers: {}, stopReason: "aborted" })));
+
+test("a failed Jev keeps the normal save result and records why", async () => {
   const failed = fakeRegistry(handBuilt, { classify: async () => ({ answers: {}, stopReason: "error", errorMessage: "Provider is not configured: typesafe" }) });
-  const stalled = fakeRegistry(handBuilt, {
-    classify: (call) => new Promise((resolve) => call.signal!.addEventListener("abort", () => resolve({ answers: {}, stopReason: "aborted" }))),
+  await withSession(failed.registry, async (save) => {
+    const result = await save(PLAN);
+    assert.match(result.content[0].text, /^Saved plan "Sun" to session context at .*\)\.$/);
+    assert.deepEqual(result.details.review, { error: "Provider is not configured: typesafe" });
+    assert.equal(await readFile(result.details.plan.path, "utf8"), PLAN);
   });
+});
+
+test("a Jev review that passes its deadline reports a timeout", async () => {
+  const stalled = fakeRegistry(handBuilt, { classify: stalledClassify });
+  await withSession(stalled.registry, async () => {
+    assert.deepEqual(await reviewPlan(PLAN, stalled.registry as any, undefined, 20), { error: "timed out" });
+  });
+});
+
+test("a cancelled, unavailable, or unsupported Jev saves the plan without a review", async () => {
+  const stalled = fakeRegistry(handBuilt, { classify: stalledClassify });
   const missing = fakeRegistry(handBuilt, { model: false });
-  for (const [registry, signal] of [[failed.registry], [stalled.registry, AbortSignal.timeout(20)], [missing.registry], [undefined]] as const) {
+  for (const [registry, signal] of [[stalled.registry, AbortSignal.timeout(20)], [missing.registry], [undefined]] as const) {
     await withSession(registry, async (save) => {
       const result = await save(PLAN, signal);
       assert.match(result.content[0].text, /^Saved plan "Sun" to session context at .*\)\.$/);
