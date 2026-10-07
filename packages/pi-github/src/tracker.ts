@@ -65,16 +65,19 @@ export function createTracker(options: {
   github: GitHub;
   session: SessionData;
   pollIntervalMs?: number;
+  firstCheckDelayMs?: number;
   idleTimeoutMs?: number;
   now?: () => number;
   onBuildFailure?: (failure: BuildFailure) => void;
 }): Tracker {
   const { github, session, onBuildFailure } = options;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
+  const firstCheckDelayMs = options.firstCheckDelayMs ?? 10_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 10 * 60_000;
   const now = options.now ?? Date.now;
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let deadline = 0;
   let sleeping = false;
   let lastActivity = now();
 
@@ -138,13 +141,19 @@ export function createTracker(options: {
     ]));
     if (pending.length) arm();
   };
-  function arm() {
-    if (stopped || timer || sleeping) return;
+  function arm(delayMs = pollIntervalMs) {
+    if (stopped || sleeping) return;
+    const at = Date.now() + delayMs;
+    if (timer) {
+      if (deadline <= at) return;
+      clearTimeout(timer);
+    }
+    deadline = at;
     timer = setTimeout(() => {
       timer = undefined;
       if (now() - lastActivity > idleTimeoutMs) { sleeping = true; return; }
       background(poll());
-    }, pollIntervalMs);
+    }, delayMs);
     timer.unref?.();
   }
 
@@ -164,6 +173,9 @@ export function createTracker(options: {
       const [found, checks] = await Promise.allSettled([github.findPullRequest(repository, branch), github.readChecks(repository, sha)]);
       if (found.status === "fulfilled" && found.value) await savePullRequest(found.value);
       if (checks.status === "fulfilled") await writeChecks(repository, branch, checks.value);
+      lastActivity = now();
+      sleeping = false;
+      arm(firstCheckDelayMs);
     },
     async trackPullRequest(url) {
       const { repository, number } = parsePullRequestUrl(url);

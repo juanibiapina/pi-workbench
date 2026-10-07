@@ -57,7 +57,7 @@ function harness(dir: string) {
   return { pi, ctx, emit, emitter, messages };
 }
 
-type Options = { pollIntervalMs?: number; idleTimeoutMs?: number; now?: () => number };
+type Options = { pollIntervalMs?: number; firstCheckDelayMs?: number; idleTimeoutMs?: number; now?: () => number };
 
 async function session(options: Options = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), "pi-github-"));
@@ -156,6 +156,30 @@ test("a fresh push is polled until GitHub registers its builds", async () => {
     await s.tracker.recordPush(push("feature", "abc", undefined, Date.now()));
     assert.equal((await s.builds())[0]!.checks?.state, "none");
     await until(async () => (await s.builds())[0]!.checks?.state === "success");
+  } finally { await s.close(); }
+});
+
+test("a fresh push is checked again shortly after the push", async () => {
+  const s = await session({ pollIntervalMs: 60_000, firstCheckDelayMs: 10 });
+  try {
+    await s.start();
+    s.fake.checks.set("abc", [[], run("success")]);
+    await s.tracker.recordPush(push("feature", "abc", undefined, Date.now()));
+    assert.equal((await s.builds())[0]!.checks?.state, "none");
+    await until(async () => (await s.builds())[0]!.checks?.state === "success");
+  } finally { await s.close(); }
+});
+
+test("a push gets its first check even while another build is pending", async () => {
+  const s = await session({ pollIntervalMs: 60_000, firstCheckDelayMs: 10 });
+  try {
+    await s.start();
+    s.fake.checks.set("a1", [run("pending")]);
+    await s.tracker.recordPush(push("a", "a1", undefined, Date.now()));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    s.fake.checks.set("b1", [[], run("success")]);
+    await s.tracker.recordPush(push("b", "b1", undefined, Date.now()));
+    await until(async () => (await s.builds()).find((build) => build.branch === "b")!.checks?.state === "success");
   } finally { await s.close(); }
 });
 

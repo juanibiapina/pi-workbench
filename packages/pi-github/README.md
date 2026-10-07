@@ -18,7 +18,7 @@ The [GitHub CLI](https://cli.github.com) `gh` must be installed and logged in.
 
 The session keeps two lists: builds and pull requests. When a branch is pushed to a GitHub remote during the session, the session records a build with the pushed commit and its build status, replacing the branch's previous build. It also records the branch's pull request if one exists. Pushes to branches without a pull request, such as `main`, record only the build. [pi-git](../pi-git) detects the pushes.
 
-While builds are running, pi-github checks GitHub every minute until they finish. For 5 minutes after a push, it also looks for a pull request opened for the branch. Checks pause after 10 minutes without activity in Pi and resume on the next prompt. Pull requests and builds also refresh when a session resumes and before prompts, at most once a minute.
+pi-github checks GitHub shortly after a push and keeps checking until the builds finish. It also picks up a pull request opened for the branch soon after the push.
 
 When a build fails, a "Build failed" line appears in the transcript with the repository, branch, commit, and pull request. Expand it to see the failed checks with links. The agent receives the same details: if it is working, it reads them during that run; otherwise it reads them with the next prompt.
 

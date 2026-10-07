@@ -50,6 +50,7 @@ const resultText = (result: { content: Array<{ type: string; text?: string }> })
 export interface Options {
   github?: GitHub;
   pollIntervalMs?: number;
+  firstCheckDelayMs?: number;
   idleTimeoutMs?: number;
 }
 
@@ -63,7 +64,7 @@ export function register(pi: ExtensionAPI, options: Options = {}): void {
   const start = (ctx: ExtensionContext): Tracker => {
     tracker?.stop();
     tracker = createTracker({
-      github, pollIntervalMs: options.pollIntervalMs, idleTimeoutMs: options.idleTimeoutMs,
+      github, pollIntervalMs: options.pollIntervalMs, firstCheckDelayMs: options.firstCheckDelayMs, idleTimeoutMs: options.idleTimeoutMs,
       onBuildFailure: (failure) => {
         pi.sendMessage({ customType: BUILD_FAILURE_MESSAGE, content: describeFailure(failure), display: true, details: failure });
       },
