@@ -8,8 +8,6 @@ Names Pi sessions and asks the agent to name unnamed ones.
 pi install npm:@juanibiapina/pi-title
 ```
 
-This extension does not need the session context provider. If you use the [full workbench](../pi-workbench), this component is already included.
-
 ## Use
 
 - `/title <name>` sets the session name.

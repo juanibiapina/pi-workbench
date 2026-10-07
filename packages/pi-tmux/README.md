@@ -11,7 +11,7 @@ pi install npm:@juanibiapina/pi-session-context
 pi install npm:@juanibiapina/pi-tmux
 ```
 
-If you use the [full workbench](../pi-workbench), this component is already included. Run Pi inside tmux to publish pane and window state.
+Run Pi inside tmux to publish pane and window state.
 
 ## Use
 

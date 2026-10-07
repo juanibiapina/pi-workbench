@@ -11,8 +11,6 @@ pi install npm:@juanibiapina/pi-session-context
 pi install npm:@juanibiapina/pi-socket
 ```
 
-If you use the [full workbench](../pi-workbench), this component is already included.
-
 ## Use
 
 The socket path is published in `~/.local/share/pi/status/<sessionId>.json` under `extensions["pi-socket"].data.socketPath`. Send one JSON object per line and read one JSON response per line. For example:

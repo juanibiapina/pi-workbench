@@ -8,7 +8,7 @@ Stores durable session data and live status for Pi extensions.
 pi install npm:@juanibiapina/pi-session-context
 ```
 
-Install this provider alongside any standalone workbench component that saves session data. The [full workbench](../pi-workbench) already includes it. Load only one provider per Pi installation.
+Install this provider alongside any standalone workbench component that saves session data. Load only one provider per Pi installation.
 
 ## Use
 

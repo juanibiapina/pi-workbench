@@ -9,8 +9,6 @@ pi install npm:@juanibiapina/pi-session-context
 pi install npm:@juanibiapina/pi-plans
 ```
 
-Already included in the [full workbench](../pi-workbench).
-
 ## Agent tools
 
 This extension adds these tools to Pi's context:
@@ -39,7 +37,7 @@ Start the server in a separate terminal:
 
 Open the browser link in expanded `save_plan` results. Ctrl-C stops the server.
 
-Approve a plan or submit comments to its running Pi session. This requires [pi-socket](../pi-socket#install), included in the full workbench.
+Approve a plan or submit comments to its running Pi session. This requires [pi-socket](../pi-socket#install).
 
 ### Configuration
 
