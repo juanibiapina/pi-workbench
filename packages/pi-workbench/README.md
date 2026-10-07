@@ -1,6 +1,6 @@
 # @juanibiapina/pi-workbench
 
-Loads the session context, tmux, socket, plans, GitHub, skills, and title extensions together in Pi.
+Installs every pi-workbench component as one Pi extension.
 
 ## Install
 
@@ -16,8 +16,9 @@ The bundle includes the session context provider and all feature components. Ins
 - [`pi-tmux`](../pi-tmux): Tmux activity state and pending notifications.
 - [`pi-socket`](../pi-socket): Local Unix socket for session control.
 - [`pi-plans`](../pi-plans): Editable session plans with `save_plan` and `delete_plan`.
-- [`pi-github`](../pi-github): Session pull requests with `save_pr` and `remove_pr`.
+- [`pi-github`](../pi-github): Pushed branches, pull requests, and build status, plus `save_pr` and `remove_pr`.
 - [`pi-skills`](../pi-skills): Local and GitHub skill loading with `load_skill`.
 - [`pi-title`](../pi-title): Session naming with `/title` and `set_session_name`.
+- [`pi-git`](../pi-git): Push detection for other extensions.
 
 Run Pi inside tmux to use the tmux features. The other components also work outside tmux. See each component's README for usage details.

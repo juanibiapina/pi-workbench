@@ -38,11 +38,11 @@ try {
   const details = await extension.tools.get('get_session_context').definition.execute('probe', {}, undefined, undefined, ctx);
   const entries = details.details.extensions;
   if (entries['pi-plans'].data.plans[0].id !== saved.details.plan.id ||
-      entries['pi-github'].data.pullRequests[0] !== 'https://github.com/owner/repo/pull/1' ||
+      entries['pi-github'].data.branches[0]?.pullRequest?.url !== 'https://github.com/owner/repo/pull/1' ||
       entries['pi-skills'].data.skills[0] !== 'probe-skill') throw new Error('Contributions were not persisted');
   const context = JSON.parse(await readFile(`${ctx.sessionManager.getSessionFile()}.context.json`, 'utf8'));
   if (context.version !== 2 || Object.keys(context.extensions).length !== 3) throw new Error('Sidecar was not saved');
-  console.log(JSON.stringify({ version: status.version, tools: [...extension.tools.keys()], socket: ping.result.type, plan: saved.details.plan.id, pr: entries['pi-github'].data.pullRequests[0], skill: entries['pi-skills'].data.skills[0] }));
+  console.log(JSON.stringify({ version: status.version, tools: [...extension.tools.keys()], socket: ping.result.type, plan: saved.details.plan.id, pr: entries['pi-github'].data.branches[0].pullRequest.url, skill: entries['pi-skills'].data.skills[0] }));
 } finally {
   for (const handler of extension.handlers.get('session_shutdown') ?? []) await handler({ type: 'session_shutdown' }, ctx);
   if (endpoint) await stat(endpoint).then(() => { throw new Error('Socket remained after shutdown'); }, () => undefined);

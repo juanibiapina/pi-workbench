@@ -14,7 +14,7 @@ Run Pi inside tmux to see activity and notifications in tmux. Other features als
 
 ## Components
 
-Alternatively, install only the components you want. If you install a feature on its own, also install `pi-session-context`, except for `pi-title`. Pi must load the provider extension to save that feature's data. Do not install the full workbench and separate components in the same Pi installation.
+Alternatively, install only the components you want. Each component's README lists the other components it needs. Do not install the full workbench and separate components in the same Pi installation.
 
 | Component | Purpose |
 | --- | --- |
@@ -23,9 +23,10 @@ Alternatively, install only the components you want. If you install a feature on
 | [`pi-tmux`](packages/pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
 | [`pi-socket`](packages/pi-socket) | Lets local programs control a running Pi session. |
 | [`pi-plans`](packages/pi-plans) | Per session plans. |
-| [`pi-github`](packages/pi-github) | Per session pull request tracking. |
+| [`pi-github`](packages/pi-github) | Per session tracking of pushed branches, pull requests, and builds. |
 | [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
 | [`pi-title`](packages/pi-title) | Names sessions. |
+| [`pi-git`](packages/pi-git) | Detects git pushes for other extensions. |
 
 ### pi-session-context
 
@@ -70,12 +71,12 @@ Keeps editable Markdown plans with the session. Plan files live in `<sessionFile
 
 ### pi-github
 
-Keeps GitHub pull request URLs with the session.
+Tracks branches pushed during the session, with their pull requests and build status. Build status updates while builds run. Needs `gh` installed and logged in.
 
 **Tools:**
 
-- `save_pr`: Adds a pull request URL.
-- `remove_pr`: Removes a pull request URL.
+- `save_pr`: Tracks a pull request the session did not push.
+- `remove_pr`: Stops tracking a pull request.
 
 ### pi-skills
 
@@ -89,10 +90,14 @@ Skills invoked with `/skill:<name>` are also tracked.
 
 ### pi-title
 
-Names sessions. While a session has no name, it reminds the agent to name it. This component does not need `pi-session-context`.
+Names sessions. While a session has no name, it reminds the agent to name it.
 
 **Tools:**
 
 - `set_session_name`: Sets the session name.
 
 **Commands:** `/title <name>` sets the session name.
+
+### pi-git
+
+Detects git pushes from any source while Pi runs: the agent, `!` commands, or another terminal. Other extensions receive each push on Pi's event bus. See [pi-git](packages/pi-git) for the event.

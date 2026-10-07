@@ -29,7 +29,8 @@
     "@juanibiapina/pi-plans": "0.1.1",
     "@juanibiapina/pi-github": "0.1.1",
     "@juanibiapina/pi-skills": "0.1.1",
-    "@juanibiapina/pi-title": "0.1.1"
+    "@juanibiapina/pi-title": "0.1.1",
+    "@juanibiapina/pi-git": "0.1.0"
   },
   "exports": {
     ".": "./src/index.ts"

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const features = ["pi-tmux", "pi-socket", "pi-plans", "pi-github", "pi-skills", "pi-title"];
+const features = ["pi-tmux", "pi-socket", "pi-plans", "pi-github", "pi-skills", "pi-title", "pi-git"];
 test("packed packages load individually and together with Pi's loader", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-packages-loader-"));
   const agentDir = path.join(directory, "empty-agent");

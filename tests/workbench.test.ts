@@ -80,7 +80,7 @@ test("legacy session plans remain editable after migration and deletion", async 
     assert.ok(listed.content[0].text.includes(plan.path));
     assert.deepEqual(view.attachments, [{ id: plan.id, path: plan.path }]);
     assert.deepEqual(view.extensions["pi-plans"].data.plans, [{ id: plan.id, title: "Build", path: `legacy.jsonl.plans/${plan.id}.md` }]);
-    assert.deepEqual(view.extensions["pi-github"].data.pullRequests, ["https://github.com/o/r/pull/3"]);
+    assert.ok(JSON.stringify(view.extensions["pi-github"].data).includes("https://github.com/o/r/pull/3"));
     assert.deepEqual(view.extensions["pi-skills"].data.skills, ["old-skill"]);
     assert.equal(await readFile(plan.path, "utf8"), "# Revised\n");
     assert.equal(JSON.parse(await readFile(contextPath, "utf8")).version, 2);
@@ -142,7 +142,7 @@ test("aggregate registers every tool once without tmux", async () => {
     await emit("session_start", context);
     await call("save_pr", context, { url: "https://github.com/o/r/pull/2" });
     const view = await call("get_session_context", context, {});
-    assert.deepEqual(view.details.extensions["pi-github"].data.pullRequests, ["https://github.com/o/r/pull/2"]);
+    assert.deepEqual(view.details.extensions["pi-github"].data.branches.map((entry: any) => entry.pullRequest.url), ["https://github.com/o/r/pull/2"]);
     await emit("session_shutdown", context);
   } finally {
     if (oldTmux !== undefined) process.env.TMUX = oldTmux;

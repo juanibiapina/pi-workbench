@@ -1,7 +1,13 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { PUSH_EVENT, type PushEvent } from "@juanibiapina/pi-git";
 import { createContributor } from "@juanibiapina/pi-session-context/client";
+import { createGhAdapter, type GitHub } from "./github.ts";
+import { createTracker, type Tracker } from "./tracker.ts";
+
+export { createTracker, normalize, type GithubSession, type SessionData, type TrackedBranch, type Tracker } from "./tracker.ts";
+export { createGhAdapter, parseRemoteUrl, summarize, type Checks, type GitHub, type PullRequest, type PullRequestView } from "./github.ts";
 
 function canonical(value: string): string {
   let url: URL;
@@ -27,25 +33,54 @@ function linkPr(label: string, value: string | undefined): string {
 }
 const resultText = (result: { content: Array<{ type: string; text?: string }> }) =>
   result.content.find((item) => item.type === "text")?.text ?? "Operation failed";
-function requests(current: unknown): string[] {
-  if (current === undefined) return [];
-  const data = current as { pullRequests?: unknown };
-  if (!data || !Array.isArray(data.pullRequests) || !data.pullRequests.every((url) => typeof url === "string")) throw new Error("Invalid saved pull requests");
-  return data.pullRequests;
+export interface Options {
+  github?: GitHub;
+  pollIntervalMs?: number;
+  idleTimeoutMs?: number;
 }
-export function register(pi: ExtensionAPI): void {
-  const session = createContributor(pi, "pi-github");
+
+const REFRESH_INTERVAL_MS = 60_000;
+
+export function register(pi: ExtensionAPI, options: Options = {}): void {
+  const session = createContributor(pi, "pi-github", 2);
+  const github = options.github ?? createGhAdapter(pi);
+  let tracker: Tracker | undefined;
+  let lastRefresh = 0;
+  const start = (ctx: ExtensionContext): Tracker => {
+    tracker?.stop();
+    tracker = createTracker({
+      github, pollIntervalMs: options.pollIntervalMs, idleTimeoutMs: options.idleTimeoutMs,
+      session: {
+        read: async () => (await session.getSession(ctx)).extensions["pi-github"]?.data,
+        update: async (change) => (await session.updateSession(ctx, change)).extensions["pi-github"]?.data,
+      },
+    });
+    return tracker;
+  };
+  const refresh = (active: Tracker) => {
+    lastRefresh = Date.now();
+    active.refresh().catch(() => undefined);
+  };
+  pi.on("session_start", (_event, ctx) => { refresh(start(ctx)); });
+  pi.on("before_agent_start", () => {
+    if (!tracker) return;
+    tracker.touch();
+    if (Date.now() - lastRefresh >= REFRESH_INTERVAL_MS) refresh(tracker);
+  });
+  pi.on("tool_execution_end", () => { tracker?.touch(); });
+  pi.on("agent_end", () => { tracker?.touch(); });
+  pi.on("session_shutdown", () => {
+    tracker?.stop();
+    tracker = undefined;
+  });
+  pi.events.on(PUSH_EVENT, (push) => { tracker?.recordPush(push as PushEvent).catch(() => undefined); });
   pi.registerTool({
     name: "save_pr", label: "Save PR",
-    description: "Associate a GitHub pull request with the current Pi session. Call after opening a PR for work in this session, or when the user gives you a PR associated with this session. Accepts its GitHub PR URL and saves it once.",
-    promptSnippet: "After opening a PR for this session or receiving an associated PR URL, call save_pr with its URL",
+    description: "Associate a GitHub pull request that this session did not push, such as a URL the user gives. Pushed branches and their PRs are tracked automatically.",
     parameters: Type.Object({ url: Type.String() }),
     async execute(_id, { url }, _signal, _update, ctx) {
       const pullRequest = canonical(url);
-      await session.updateSession(ctx, (current) => {
-        const saved = requests(current);
-        return { pullRequests: saved.includes(pullRequest) ? saved : [...saved, pullRequest] };
-      });
+      await (tracker ?? start(ctx)).trackPullRequest(pullRequest);
       return { content: [{ type: "text", text: `Saved PR ${pullRequest} to session context.` }], details: { sessionId: ctx.sessionManager.getSessionId(), pullRequest } };
     },
     renderCall(args, theme) {
@@ -66,11 +101,7 @@ export function register(pi: ExtensionAPI): void {
     parameters: Type.Object({ url: Type.String() }),
     async execute(_id, { url }, _signal, _update, ctx) {
       const pullRequest = canonical(url);
-      await session.updateSession(ctx, (current) => {
-        const saved = requests(current);
-        if (!saved.includes(pullRequest)) throw new Error(`PR not found in this session: ${pullRequest}`);
-        return { pullRequests: saved.filter((item) => item !== pullRequest) };
-      });
+      await (tracker ?? start(ctx)).untrackPullRequest(pullRequest);
       return { content: [{ type: "text", text: `Removed PR ${pullRequest} from session context.` }], details: { sessionId: ctx.sessionManager.getSessionId(), pullRequest } };
     },
     renderCall(args, theme) {

@@ -4,6 +4,10 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ## [Unreleased]
 
+### Added
+
+- Add pi-git.
+
 ## [0.1.2] - 2026-10-07
 
 ### Added
