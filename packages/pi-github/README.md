@@ -22,6 +22,8 @@ pi-github checks GitHub shortly after a push and keeps checking until the builds
 
 When a build fails, a "Build failed" line appears in the transcript with the repository, branch, commit, and pull request. Expand it to see the failed checks with links. The agent receives the same details: if it is working, it reads them during that run; otherwise it starts a turn to handle the failure.
 
+When a build passes, a "Build passed" line appears in the transcript. The agent reads it at the end of its current run or with the next prompt, without starting a turn.
+
 ## Agent tools
 
 This extension adds these tools to Pi's context:

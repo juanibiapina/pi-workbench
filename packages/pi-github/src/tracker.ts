@@ -15,7 +15,7 @@ export interface GithubSession {
   pullRequests: PullRequest[];
 }
 
-export interface BuildFailure {
+export interface BuildResult {
   build: Build;
   pullRequest: PullRequest | null;
 }
@@ -68,9 +68,9 @@ export function createTracker(options: {
   firstCheckDelayMs?: number;
   idleTimeoutMs?: number;
   now?: () => number;
-  onBuildFailure?: (failure: BuildFailure) => void;
+  onBuildFinished?: (result: BuildResult) => void;
 }): Tracker {
-  const { github, session, onBuildFailure } = options;
+  const { github, session, onBuildFinished } = options;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
   const firstCheckDelayMs = options.firstCheckDelayMs ?? 10_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 10 * 60_000;
@@ -107,18 +107,18 @@ export function createTracker(options: {
   });
 
   const writeChecks = async (repository: string, branch: string, checks: Checks) => {
-    let failed = false;
+    let changed = false;
     const next = await write((data) => {
       const target = data.builds.find((build) => onBranch(build, repository, branch));
-      failed = false;
+      changed = false;
       if (!target || target.sha !== checks.sha) return data;
-      failed = checks.state === "failure" && target.checks?.state !== "failure";
+      changed = (checks.state === "success" || checks.state === "failure") && target.checks?.state !== checks.state;
       return { ...data, builds: data.builds.map((build) => build === target ? { ...build, checks } : build) };
     });
-    if (!failed || !onBuildFailure) return;
+    if (!changed || !onBuildFinished) return;
     const build = next.builds.find((item) => onBranch(item, repository, branch));
     if (!build) return;
-    try { onBuildFailure({ build, pullRequest: pullRequestOf(next, build) }); } catch {}
+    try { onBuildFinished({ build, pullRequest: pullRequestOf(next, build) }); } catch {}
   };
 
   const checkBuild = async (build: Build) => {
