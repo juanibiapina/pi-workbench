@@ -44,12 +44,12 @@ function fakeGitHub() {
 function harness(dir: string) {
   const emitter = new EventEmitter();
   const handlers = new Map<string, Array<(event: unknown, ctx: ExtensionContext) => unknown>>();
-  const messages: Array<{ customType: string; content: unknown; display: boolean }> = [];
+  const messages: Array<{ customType: string; content: unknown; display: boolean; options?: { triggerTurn?: boolean } }> = [];
   const pi = {
     events: { emit: (name: string, value: unknown) => emitter.emit(name, value), on: (name: string, handler: (value: unknown) => void) => { emitter.on(name, handler); return () => emitter.off(name, handler); } },
     on: (name: string, handler: any) => handlers.set(name, [...(handlers.get(name) ?? []), handler]),
     registerTool: () => {}, registerMessageRenderer: () => {}, getSessionName: () => "Test",
-    sendMessage: (message: { customType: string; content: unknown; display: boolean }) => { messages.push(message); },
+    sendMessage: (message: { customType: string; content: unknown; display: boolean }, options?: { triggerTurn?: boolean }) => { messages.push({ ...message, options }); },
   } as unknown as ExtensionAPI;
   const ctx = { cwd: dir, hasUI: false, isIdle: () => true, sessionManager: { getSessionId: () => "s", getSessionFile: () => path.join(dir, "s.jsonl") } } as ExtensionContext;
   const emit = async (name: string) => { for (const handler of handlers.get(name) ?? []) await handler({ type: name }, ctx); };
@@ -322,7 +322,7 @@ test("a resumed session does not report a saved failure again", async () => {
   } finally { await s.close(); }
 });
 
-test("a failed build of a pushed commit is shown and sent to the agent", async () => {
+test("a failed build of a pushed commit is shown and starts an agent turn", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "pi-github-"));
   const { pi, emit, emitter, messages } = harness(dir);
   const fake = fakeGitHub();
@@ -336,6 +336,7 @@ test("a failed build of a pushed commit is shown and sent to the agent", async (
     assert.equal(messages[0]!.customType, "pi-github-build-failure");
     assert.equal(messages[0]!.display, true);
     assert.match(String(messages[0]!.content), /https:\/\/github\.com\/o\/r\/actions\/runs\/1/);
+    assert.equal(messages[0]!.options?.triggerTurn, true);
   } finally {
     await emit("session_shutdown");
     await rm(dir, { recursive: true, force: true });

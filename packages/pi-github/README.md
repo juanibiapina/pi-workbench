@@ -20,7 +20,7 @@ The session keeps two lists: builds and pull requests. When a branch is pushed t
 
 pi-github checks GitHub shortly after a push and keeps checking until the builds finish. It also picks up a pull request opened for the branch soon after the push.
 
-When a build fails, a "Build failed" line appears in the transcript with the repository, branch, commit, and pull request. Expand it to see the failed checks with links. The agent receives the same details: if it is working, it reads them during that run; otherwise it reads them with the next prompt.
+When a build fails, a "Build failed" line appears in the transcript with the repository, branch, commit, and pull request. Expand it to see the failed checks with links. The agent receives the same details: if it is working, it reads them during that run; otherwise it starts a turn to handle the failure.
 
 ## Agent tools
 

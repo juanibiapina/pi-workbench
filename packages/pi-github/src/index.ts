@@ -66,7 +66,7 @@ export function register(pi: ExtensionAPI, options: Options = {}): void {
     tracker = createTracker({
       github, pollIntervalMs: options.pollIntervalMs, firstCheckDelayMs: options.firstCheckDelayMs, idleTimeoutMs: options.idleTimeoutMs,
       onBuildFailure: (failure) => {
-        pi.sendMessage({ customType: BUILD_FAILURE_MESSAGE, content: describeFailure(failure), display: true, details: failure });
+        pi.sendMessage({ customType: BUILD_FAILURE_MESSAGE, content: describeFailure(failure), display: true, details: failure }, { triggerTurn: true });
       },
       session: {
         read: async () => (await session.getSession(ctx)).extensions["pi-github"]?.data,
