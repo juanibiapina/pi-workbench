@@ -16,7 +16,7 @@ The [GitHub CLI](https://cli.github.com) `gh` must be installed and logged in.
 
 ## Tracking
 
-The session keeps two lists: builds and pull requests. When a branch is pushed to a GitHub remote during the session, the session records a build with the pushed commit and its build status, replacing the branch's previous build. It also records the branch's pull request if one exists. Pushes to branches without a pull request, such as `main`, record only the build. [pi-git](../pi-git) detects the pushes.
+The session keeps two lists: builds and pull requests. When the agent in this session pushes a branch to a GitHub remote, the session records a build with the pushed commit and its build status, replacing the branch's previous build. It also records the branch's pull request if one exists. Pushes to branches without a pull request, such as `main`, record only the build. [pi-git](../pi-git) detects the pushes; pushes from other sessions or a terminal are not tracked.
 
 pi-github checks GitHub shortly after a push and keeps checking until the builds finish. It also picks up a pull request opened for the branch soon after the push.
 

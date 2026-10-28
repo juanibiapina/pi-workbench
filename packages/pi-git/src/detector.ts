@@ -101,6 +101,3 @@ export async function createPushDetector(options: { cwd: string }): Promise<Push
   };
 }
 
-export async function currentBranch(cwd: string): Promise<string | null> {
-  try { return (await runner(cwd)(["symbolic-ref", "--quiet", "--short", "HEAD"])).trim() || null; } catch { return null; }
-}

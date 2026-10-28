@@ -1,54 +1,48 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createPushDetector, currentBranch, type GitPush, type PushDetector } from "./detector.ts";
+import { createPushDetector, type GitPush, type PushDetector } from "./detector.ts";
 
 export { createPushDetector, type GitPush, type PushDetector } from "./detector.ts";
 
 export const PUSH_EVENT = "juanibiapina:pi-git:v1:push";
 
-export interface PushEvent extends GitPush {
-  source: "agent" | "external";
-}
+export type PushEvent = GitPush;
 
-type Source = PushEvent["source"];
+const PUSH_COMMAND = /\bpush\b|\bgh\s+pr\s+create\b|\bbut\s+pr\b/;
+
+const pushes = (toolName: string, args: unknown) => {
+  const command = (args as { command?: unknown } | undefined)?.command;
+  return toolName === "bash" && typeof command === "string" && PUSH_COMMAND.test(command);
+};
 
 export function register(pi: ExtensionAPI): void {
   let detector: Promise<PushDetector> | undefined;
-  let cwd = "";
-  let running: Promise<void> | undefined;
-  let queued: Source | undefined;
-  const emit = async (source: Source) => {
+  let open = new Set<string>();
+  let queue: Promise<void> = Promise.resolve();
+  const observe = (change: (windows: Set<string>) => void): Promise<void> => {
     const active = detector;
-    if (!active) return;
-    const pushes = await (await active).check();
-    const branch = source === "external" && pushes.length ? await currentBranch(cwd) : null;
-    for (const push of pushes) {
-      if (source === "external" && push.branch !== branch) continue;
-      if (detector === active) pi.events.emit(PUSH_EVENT, { ...push, source } satisfies PushEvent);
-    }
-  };
-  const check = (source: Source): Promise<void> => {
-    if (running) {
-      queued = queued === "agent" || source === "agent" ? "agent" : "external";
-      return running;
-    }
-    running = (async () => {
-      let next: Source | undefined = source;
-      while (next) {
-        queued = undefined;
-        await emit(next).catch(() => undefined);
-        next = queued;
-      }
-      running = undefined;
-    })();
-    return running;
+    const windows = open;
+    if (!active) return Promise.resolve();
+    const run = async () => {
+      const found = await (await active).check().catch(() => []);
+      const claimed = windows.size > 0;
+      change(windows);
+      if (!claimed || detector !== active) return;
+      for (const push of found) pi.events.emit(PUSH_EVENT, push satisfies PushEvent);
+    };
+    queue = queue.then(run, run);
+    return queue;
   };
   pi.on("session_start", async (_event, ctx) => {
-    cwd = ctx.cwd;
-    detector = createPushDetector({ cwd });
+    open = new Set();
+    detector = createPushDetector({ cwd: ctx.cwd });
     await detector;
   });
-  pi.on("tool_execution_end", () => { void check("agent"); });
-  pi.on("before_agent_start", async () => { await check("external"); });
+  pi.on("tool_execution_start", async (event) => {
+    if (pushes(event.toolName, event.args)) await observe((windows) => windows.add(event.toolCallId));
+  });
+  pi.on("tool_execution_end", async (event) => {
+    if (open.has(event.toolCallId)) await observe((windows) => windows.delete(event.toolCallId));
+  });
   pi.on("session_shutdown", () => { detector = undefined; });
 }
 

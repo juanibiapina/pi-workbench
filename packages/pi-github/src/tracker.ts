@@ -6,7 +6,6 @@ export interface Build {
   branch: string;
   sha: string;
   pushedAt: string;
-  source: PushEvent["source"];
   checks: Checks | null;
 }
 
@@ -165,7 +164,7 @@ export function createTracker(options: {
       await write((data) => {
         const existing = data.builds.find((build) => onBranch(build, repository, branch));
         const build: Build = {
-          repository, branch, sha, pushedAt: new Date(push.pushedAt).toISOString(), source: push.source,
+          repository, branch, sha, pushedAt: new Date(push.pushedAt).toISOString(),
           checks: existing?.sha === sha ? existing.checks : null,
         };
         return { ...data, builds: existing ? data.builds.map((item) => item === existing ? build : item) : [...data.builds, build] };

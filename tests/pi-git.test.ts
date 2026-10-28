@@ -108,34 +108,86 @@ test("a directory outside git reports nothing", async () => {
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
-test("the extension marks agent pushes and keeps only this worktree's outside pushes", async () => {
+function piSession(cwd: string) {
+  const emitter = new EventEmitter();
+  const handlers = new Map<string, Array<(event: unknown, ctx: ExtensionContext) => unknown>>();
+  register({
+    events: { emit: (name: string, value: unknown) => emitter.emit(name, value), on: (name: string, handler: (value: unknown) => void) => { emitter.on(name, handler); return () => emitter.off(name, handler); } },
+    on: (name: string, handler: any) => handlers.set(name, [...(handlers.get(name) ?? []), handler]),
+  } as unknown as ExtensionAPI);
+  const emit = async (event: { type: string } & Record<string, unknown>) => {
+    for (const handler of handlers.get(event.type) ?? []) await handler(event, { cwd } as ExtensionContext);
+  };
+  const pushes: PushEvent[] = [];
+  emitter.on(PUSH_EVENT, (push: PushEvent) => pushes.push(push));
+  let ids = 0;
+  const begin = async (toolName: string, args: Record<string, unknown>, parentToolCallId?: string) => {
+    const toolCallId = `call-${++ids}`;
+    await emit({ type: "tool_execution_start", toolCallId, toolName, args, parentToolCallId });
+    return () => emit({ type: "tool_execution_end", toolCallId, toolName, result: {}, isError: false, parentToolCallId });
+  };
+  const tool = async (toolName: string, args: Record<string, unknown>, run: () => void = () => {}) => {
+    const end = await begin(toolName, args);
+    run();
+    await end();
+  };
+  return { pushes, begin, tool, start: () => emit({ type: "session_start" }), before: () => emit({ type: "before_agent_start" }) };
+}
+
+test("only the session whose command pushed reports the push", async () => {
   const repo = await repository();
   try {
-    const emitter = new EventEmitter();
-    const handlers = new Map<string, Array<(event: unknown, ctx: ExtensionContext) => unknown>>();
-    register({
-      events: { emit: (name: string, value: unknown) => emitter.emit(name, value), on: (name: string, handler: (value: unknown) => void) => { emitter.on(name, handler); return () => emitter.off(name, handler); } },
-      on: (name: string, handler: any) => handlers.set(name, [...(handlers.get(name) ?? []), handler]),
-    } as unknown as ExtensionAPI);
-    const emit = async (name: string) => { for (const handler of handlers.get(name) ?? []) await handler({ type: name }, { cwd: repo.work } as ExtensionContext); };
-    const events: PushEvent[] = [];
-    emitter.on(PUSH_EVENT, (push: PushEvent) => events.push(push));
-    await emit("session_start");
-
-    commit(repo.work, "agent");
-    git(repo.work, "push", "-q", "origin", "main");
-    await emit("tool_execution_end");
-    await emit("before_agent_start");
-    assert.deepEqual(events.map((push) => [push.branch, push.source]), [["main", "agent"]]);
-
     const tree = path.join(repo.root, "tree");
     git(repo.work, "worktree", "add", "-q", "-b", "side", tree);
-    commit(tree, "side");
-    git(tree, "push", "-q", "origin", "side");
+    const a = piSession(repo.work);
+    const b = piSession(repo.work);
+    const c = piSession(tree);
+    await Promise.all([a.start(), b.start(), c.start()]);
+    const pushed = commit(repo.work, "agent");
+    await a.tool("bash", { command: "git push origin main" }, () => git(repo.work, "push", "-q", "origin", "main"));
+    await b.tool("read", { path: "README.md" });
+    await b.tool("bash", { command: "but push" });
+    await c.tool("bash", { command: "git push origin side" });
+    await b.before();
+    assert.deepEqual(a.pushes.map((push) => [push.branch, push.after]), [["main", pushed]]);
+    assert.deepEqual(b.pushes, []);
+    assert.deepEqual(c.pushes, []);
+  } finally { await repo.close(); }
+});
+
+test("pushes made outside the session's push commands are not reported", async () => {
+  const repo = await repository();
+  try {
+    const session = piSession(repo.work);
+    await session.start();
     commit(repo.work, "terminal");
     git(repo.work, "push", "-q", "origin", "main");
-    await emit("before_agent_start");
-    assert.deepEqual(events.map((push) => [push.branch, push.source]), [["main", "agent"], ["main", "external"]]);
+    await session.before();
+    await session.tool("bash", { command: "npm test" }, () => {
+      commit(repo.work, "other session");
+      git(repo.work, "push", "-q", "origin", "main");
+    });
+    await session.tool("bash", { command: "git push" });
+    assert.deepEqual(session.pushes, []);
+  } finally { await repo.close(); }
+});
+
+test("pushes from nested and overlapping push commands are reported once", async () => {
+  const repo = await repository();
+  try {
+    const session = piSession(repo.work);
+    await session.start();
+    const endScript = await session.begin("codemode", { code: "await tools.bash({ command: 'but push main' })" });
+    const endFirst = await session.begin("bash", { command: "but push main" }, "script");
+    const nested = commit(repo.work, "nested");
+    git(repo.work, "push", "-q", "origin", "main");
+    const endSecond = await session.begin("bash", { command: "gh pr create --fill" });
+    await endFirst();
+    const parallel = commit(repo.work, "parallel");
+    git(repo.work, "push", "-q", "origin", "main:feature");
+    await endSecond();
+    await endScript();
+    assert.deepEqual(session.pushes.map((push) => [push.branch, push.after]), [["main", nested], ["feature", parallel]]);
   } finally { await repo.close(); }
 });
 

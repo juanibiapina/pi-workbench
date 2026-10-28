@@ -91,7 +91,7 @@ async function session(options: Options = {}) {
 }
 
 const push = (branch: string, after: string, remoteUrl = "git@github.com:o/r.git", pushedAt = Date.parse("2026-01-01T00:00:00Z")): PushEvent => ({
-  repository: "/work", remote: "origin", remoteUrl, branch, before: null, after, pushedAt, source: "agent",
+  repository: "/work", remote: "origin", remoteUrl, branch, before: null, after, pushedAt,
 });
 
 async function until(condition: () => Promise<boolean>, timeoutMs = 2000) {

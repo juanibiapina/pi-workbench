@@ -6,4 +6,4 @@ All notable changes to `@juanibiapina/pi-git` are recorded here. This file follo
 
 ### Added
 
-- Detect git pushes from any source and announce them to other extensions.
+- Detect git pushes made by the agent's commands in the session and announce them to other extensions.
