@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Viewer, type ViewerHandle } from "@plannotator/ui/components/Viewer";
 import { AnnotationPanel } from "@plannotator/ui/components/AnnotationPanel";
-import { ThemeProvider } from "@plannotator/ui/components/ThemeProvider";
+import { ThemeProvider, useTheme } from "@plannotator/ui/components/ThemeProvider";
+import { THEME_MODES } from "@plannotator/ui/theme-modes";
+import { setDefaultThemePair } from "@plannotator/ui/utils/themeRegistry";
 import { configurePlannotatorUI } from "@plannotator/ui/configure";
 import { configStore } from "@plannotator/ui/config";
 import { parseMarkdownToBlocks } from "@plannotator/ui/utils/parser";
@@ -15,7 +17,14 @@ import "./style.css";
 configurePlannotatorUI({ identityProvider: { getIdentity: () => "You", isCurrentUser: (author) => author === "You", isEditable: () => false },
   skillCatalogTransport: async () => [], docPreviewFetcher: async () => null,
   serverSync: async () => {}, webmcp: { enabled: false } });
-configStore.set("themePair", { mode: "system", light: "github", dark: "tokyo-night" });
+setDefaultThemePair({ mode: "system", light: "github", dark: "tokyo-night" });
+configStore.set("themePair", { ...configStore.get("themePair"), light: "github", dark: "tokyo-night" });
+function ModeSwitch() {
+  const { mode, setMode } = useTheme();
+  return <div className="mode-switch" role="group" aria-label="Color mode">
+    {THEME_MODES.map(({ id, label, Icon }) => <button key={id} type="button" aria-label={label} title={label} aria-pressed={mode === id} onClick={() => setMode(id)}><Icon /></button>)}
+  </div>;
+}
 async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
   const result = await response.json();
@@ -100,6 +109,7 @@ function Document({ endpoint }: { endpoint: string }) {
       </div>
       <p className="plan-result" role={error ? "alert" : "status"} data-kind={error ? "error" : notice ? "success" : undefined}>{error || notice}</p>
       <details open={editorOpen} onToggle={(event) => setEditorOpen(event.currentTarget.open)}><summary>Edit message</summary><div className="implementation-editor"><label htmlFor="implementation-message">Message to Pi</label><textarea id="implementation-message" rows={3} value={implementationMessage} onChange={(event) => { setImplementationMessage(event.target.value); setApproved(false); setNotice(""); }} disabled={pending !== null} /></div></details>
+      <ModeSwitch />
     </section>
     <div className="review-layout"><main className="document-body">
       <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => { setNotice(""); setAnnotations((current) => [...current, annotation]); }} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={null} />

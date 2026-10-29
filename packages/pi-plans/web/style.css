@@ -50,6 +50,11 @@ html { scroll-padding-top: 64px; }
 .plan-result:empty { display: none; }
 .plan-result[data-kind="success"] { color: var(--success); }
 .plan-result[data-kind="error"] { color: var(--destructive); }
+.mode-switch { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.mode-switch button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.mode-switch button + button { border-left: 1px solid var(--border); }
+.mode-switch button:hover { color: var(--foreground); }
+.mode-switch button[aria-pressed="true"] { background: var(--muted); color: var(--foreground); }
 .plan-actions summary { cursor: pointer; font-size: 13px; line-height: 20px; padding-block: 6px; width: fit-content; }
 .implementation-editor { position: absolute; top: 100%; right: 24px; width: min(420px, calc(100% - 48px)); max-height: 50dvh; overflow: auto; padding: 16px; background: var(--background); border: 1px solid var(--border); border-radius: 0 0 8px 8px; }
 .plan-actions label { display: block; font-size: 14px; margin-bottom: 8px; }

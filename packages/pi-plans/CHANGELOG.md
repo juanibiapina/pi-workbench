@@ -11,6 +11,7 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ### Added
 
+- Switch plans between light, dark, and system colors from the plan page.
 - Approve a plan from the browser with an editable message to Pi.
 - Open saved plan links in a browser and send comments on selected text to Pi.
 
