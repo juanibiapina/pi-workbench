@@ -31,7 +31,8 @@ p { line-height: 1.6; }
 .document-body > div { margin-inline: auto; }
 .document-body article { padding: 24px 28px; }
 .document-body [data-viewer-document-header] { margin-bottom: 24px; }
-.document-body article :is(p, li, td, th, blockquote) { font-size: 16px; line-height: 1.6; }
+.document-body article { line-height: 1.2; --text-sm: 16px; --text-sm--line-height: 1.2; --leading-relaxed: 1.2; }
+.document-body article :is(p, li, td, th, blockquote) { font-size: 16px; line-height: 1.2; }
 .document-body article code:not(pre code) { background: transparent; padding: 0; border-radius: 0; color: var(--inline-code); font-size: 1em; }
 .review-comments { border-left: 1px solid var(--border); padding: 28px 20px; min-width: 0; }
 .review-comments h2 { font-size: 16px; font-weight: 600; margin: 0; }

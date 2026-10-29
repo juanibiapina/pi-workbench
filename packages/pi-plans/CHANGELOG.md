@@ -17,7 +17,7 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ### Changed
 
-- Show plans in Source Code Pro with Tokyonight Moon colors in dark mode and GitHub colors in light mode.
+- Show plans in Source Code Pro with terminal line spacing, Tokyonight Moon colors in dark mode and GitHub colors in light mode.
 - Show inline code as colored text instead of gray boxes.
 - Use the full window width for plans.
 - Run instructions use the server included in the Pi extension installation.
