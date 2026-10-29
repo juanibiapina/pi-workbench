@@ -1,4 +1,16 @@
-:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+:root.theme-tokyo-night:not(.light) {
+  --background: #222436; --foreground: #c8d3f5;
+  --card: #1e2030; --card-foreground: #c8d3f5; --popover: #1e2030; --popover-foreground: #c8d3f5;
+  --primary: #82aaff; --primary-foreground: #1e2030; --secondary: #444a73; --secondary-foreground: #c8d3f5;
+  --muted: #2f334d; --muted-foreground: #828bb8; --accent: #86e1fc; --accent-foreground: #1e2030;
+  --destructive: #ff757f; --destructive-foreground: #1e2030; --border: #444a73; --input: #2f334d; --ring: #82aaff;
+  --success: #c3e88d; --success-foreground: #1e2030; --warning: #ffc777; --warning-foreground: #1e2030;
+  --code-bg: #191b29; --focus-highlight: #86e1fc;
+}
+:root.light { --inline-code: #116329; }
+:root:not(.light) { --inline-code: #c3e88d; }
+:root:not(.light), :root.light { --font-sans: "SauceCodePro Nerd Font", "Source Code Pro Variable", monospace; --font-mono: var(--font-sans); }
+:root { color-scheme: light dark; font-family: var(--font-sans); }
 body { margin: 0; background: var(--background); color: var(--foreground); }
 * { box-sizing: border-box; }
 ::selection { background: color-mix(in srgb, var(--primary) 24%, transparent); }
@@ -19,6 +31,8 @@ p { line-height: 1.6; }
 .document-body > div { margin-inline: auto; }
 .document-body article { padding: 24px 28px; }
 .document-body [data-viewer-document-header] { margin-bottom: 24px; }
+.document-body article :is(p, li, td, th, blockquote) { font-size: 16px; line-height: 1.6; }
+.document-body article code:not(pre code) { background: transparent; padding: 0; border-radius: 0; color: var(--inline-code); font-size: 1em; }
 .review-comments { border-left: 1px solid var(--border); padding: 28px 20px; min-width: 0; }
 .review-comments h2 { font-size: 16px; font-weight: 600; margin: 0; }
 .review-comments > div { width: 100%; }

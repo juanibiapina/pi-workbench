@@ -15,6 +15,7 @@
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.0.4",
     "@earendil-works/pi-tui": "1.0.4",
+    "@fontsource-variable/source-code-pro": "5.3.1",
     "@plannotator/ui": "0.47.0",
     "@sinclair/typebox": "^0.34.0",
     "@types/node": "^24.0.0",

@@ -4,15 +4,18 @@ import { Viewer, type ViewerHandle } from "@plannotator/ui/components/Viewer";
 import { AnnotationPanel } from "@plannotator/ui/components/AnnotationPanel";
 import { ThemeProvider } from "@plannotator/ui/components/ThemeProvider";
 import { configurePlannotatorUI } from "@plannotator/ui/configure";
+import { configStore } from "@plannotator/ui/config";
 import { parseMarkdownToBlocks } from "@plannotator/ui/utils/parser";
 import { AnnotationType, type Annotation, type EditorMode, type InputMethod } from "@plannotator/ui/types";
 import type { PlanDocument, MessageResult } from "../src/browser-contract.ts";
 import "@plannotator/ui/styles.css";
+import "@fontsource-variable/source-code-pro";
 import "./style.css";
 
 configurePlannotatorUI({ identityProvider: { getIdentity: () => "You", isCurrentUser: (author) => author === "You", isEditable: () => false },
   skillCatalogTransport: async () => [], docPreviewFetcher: async () => null,
   serverSync: async () => {}, webmcp: { enabled: false } });
+configStore.set("themePair", { mode: "system", light: "github", dark: "tokyo-night" });
 async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
   const result = await response.json();
@@ -99,9 +102,11 @@ function Document({ endpoint }: { endpoint: string }) {
       <details open={editorOpen} onToggle={(event) => setEditorOpen(event.currentTarget.open)}><summary>Edit message</summary><div className="implementation-editor"><label htmlFor="implementation-message">Message to Pi</label><textarea id="implementation-message" rows={3} value={implementationMessage} onChange={(event) => { setImplementationMessage(event.target.value); setApproved(false); setNotice(""); }} disabled={pending !== null} /></div></details>
     </section>
     <div className="review-layout"><main className="document-body">
-      <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => { setNotice(""); setAnnotations((current) => [...current, annotation]); }} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={840} />
+      <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => { setNotice(""); setAnnotations((current) => [...current, annotation]); }} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={null} />
     </main><aside className="review-comments" aria-label="Plan comments">
       <div className="comments-heading"><h2>Comments</h2></div><AnnotationPanel presentation="embedded" isOpen annotations={annotations} blocks={blocks} selectedId={selected} onSelect={setSelected} onDelete={(id) => { viewer.current?.removeHighlight(id); setAnnotations((current) => current.filter((annotation) => annotation.id !== id)); }} onEdit={(id, updates) => setAnnotations((current) => current.map((annotation) => annotation.id === id ? { ...annotation, ...updates } : annotation))} sharingEnabled={false} /></aside></div>
   </div>;
 }
-createRoot(window.document.getElementById("root")!).render(<ThemeProvider defaultTheme="system"><App /></ThemeProvider>);
+void window.document.fonts.load('16px "Source Code Pro Variable"').catch(() => undefined).then(() => {
+  createRoot(window.document.getElementById("root")!).render(<ThemeProvider><App /></ThemeProvider>);
+});
