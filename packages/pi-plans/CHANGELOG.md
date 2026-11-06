@@ -17,6 +17,7 @@ All notable changes to `@juanibiapina/pi-plans` are recorded here. This file fol
 
 ### Changed
 
+- Show comments in a drawer opened from the plan's action bar; on very wide screens it opens beside the plan.
 - Show plans in Source Code Pro with terminal line spacing, Tokyonight Moon colors in dark mode and GitHub colors in light mode.
 - Show inline code as colored text instead of gray boxes.
 - Use the full window width for plans.

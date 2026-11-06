@@ -36,6 +36,7 @@ function App() {
   return match ? <Document endpoint={`/api/plans/${match[1]}/${match[2]}`} /> : <p role="alert">Invalid plan link</p>;
 }
 type Draft = { document: PlanDocument; annotations: Annotation[] };
+const WIDE_SCREEN = "(min-width: 1600px)";
 function Document({ endpoint }: { endpoint: string }) {
   const [document, setDocument] = useState<PlanDocument>();
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -48,8 +49,29 @@ function Document({ endpoint }: { endpoint: string }) {
   const [implementationMessage, setImplementationMessage] = useState("Implement");
   const [approved, setApproved] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(() => window.matchMedia(WIDE_SCREEN).matches);
   const sending = useRef(false);
   const viewer = useRef<ViewerHandle>(null);
+  const actions = useRef<HTMLElement>(null);
+  const commentsToggle = useRef<HTMLButtonElement>(null);
+  const commentsClose = useRef<HTMLButtonElement>(null);
+  const focusComments = useRef(false);
+  const toggleComments = () => {
+    if (commentsOpen) setCommentsOpen(false);
+    else { focusComments.current = true; setCommentsOpen(true); }
+  };
+  const closeComments = () => { setCommentsOpen(false); commentsToggle.current?.focus(); };
+  useEffect(() => {
+    if (commentsOpen && focusComments.current) commentsClose.current?.focus();
+    focusComments.current = false;
+  }, [commentsOpen]);
+  useEffect(() => {
+    const bar = actions.current;
+    if (!bar) return;
+    const observer = new ResizeObserver(() => window.document.documentElement.style.setProperty("--plan-actions-height", `${bar.offsetHeight}px`));
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [document !== undefined]);
   const storageKey = `pi-plan-review:${endpoint}`;
   const load = async () => {
     setError("");
@@ -100,21 +122,27 @@ function Document({ endpoint }: { endpoint: string }) {
     } catch (err) { setError((err as Error).message); }
     finally { sending.current = false; setPending(null); }
   };
+  const onCommentsKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== "Escape" || window.matchMedia(WIDE_SCREEN).matches) return;
+    if ((event.target as HTMLElement).closest("textarea, input")) return;
+    closeComments();
+  };
   if (!document) return <main className="connection"><p role={error ? "alert" : "status"}>{error || "Opening plan…"}</p></main>;
   return <div className="document-shell">
-    <section className="plan-actions" aria-label="Plan actions">
+    <section ref={actions} className="plan-actions" aria-label="Plan actions">
       <div className="plan-action-buttons">
         <button className="approve-plan" data-approved={approved || undefined} onClick={() => void send("approval")} disabled={approved || !implementationMessage.trim() || pending !== null}>{pending === "approval" ? "Sending…" : approved ? "✓ Approved" : "Approve plan"}</button>
-        <button className="submit-review" onClick={() => void send("review")} disabled={!annotations.length || pending !== null}>{pending === "review" ? "Submitting…" : `Submit${annotations.length ? ` (${annotations.length})` : ""}`}</button>
+        <button className="submit-review" onClick={() => void send("review")} disabled={!annotations.length || pending !== null}>{pending === "review" ? "Submitting…" : "Submit"}</button>
+        <button ref={commentsToggle} className="comments-toggle" aria-expanded={commentsOpen} aria-controls="plan-comments" onClick={toggleComments}>{`Comments (${annotations.length})`}</button>
       </div>
       <p className="plan-result" role={error ? "alert" : "status"} data-kind={error ? "error" : notice ? "success" : undefined}>{error || notice}</p>
       <details open={editorOpen} onToggle={(event) => setEditorOpen(event.currentTarget.open)}><summary>Edit message</summary><div className="implementation-editor"><label htmlFor="implementation-message">Message to Pi</label><textarea id="implementation-message" rows={3} value={implementationMessage} onChange={(event) => { setImplementationMessage(event.target.value); setApproved(false); setNotice(""); }} disabled={pending !== null} /></div></details>
       <ModeSwitch />
     </section>
-    <div className="review-layout"><main className="document-body">
-      <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => { setNotice(""); setAnnotations((current) => [...current, annotation]); }} onSelectAnnotation={setSelected} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={null} />
-    </main><aside className="review-comments" aria-label="Plan comments">
-      <div className="comments-heading"><h2>Comments</h2></div><AnnotationPanel presentation="embedded" isOpen annotations={annotations} blocks={blocks} selectedId={selected} onSelect={setSelected} onDelete={(id) => { viewer.current?.removeHighlight(id); setAnnotations((current) => current.filter((annotation) => annotation.id !== id)); }} onEdit={(id, updates) => setAnnotations((current) => current.map((annotation) => annotation.id === id ? { ...annotation, ...updates } : annotation))} sharingEnabled={false} /></aside></div>
+    <div className="review-layout" data-comments-open={commentsOpen || undefined}><main className="document-body">
+      <Viewer ref={viewer} blocks={blocks} markdown={document.markdown} annotations={annotations} onAddAnnotation={(annotation) => { setNotice(""); setAnnotations((current) => [...current, annotation]); }} onSelectAnnotation={(id) => { setSelected(id); if (id) setCommentsOpen(true); }} selectedAnnotationId={selected} mode={mode} inputMethod={inputMethod} annotationHeader={{ onModeChange: setMode, onInputMethodChange: setInputMethod, hideQuickLabel: true }} actionsLabelMode="icon" taterMode={false} allowImages={false} quickLabels={false} disableCodePathValidation stickyActions={false} maxWidth={null} />
+    </main>{commentsOpen && <aside id="plan-comments" className="review-comments" aria-label="Plan comments" onKeyDown={onCommentsKeyDown}>
+      <div className="comments-heading"><h2>Comments</h2><button ref={commentsClose} type="button" aria-label="Close comments" title="Close comments" onClick={closeComments}>✕</button></div><AnnotationPanel presentation="embedded" isOpen annotations={annotations} blocks={blocks} selectedId={selected} onSelect={setSelected} onDelete={(id) => { viewer.current?.removeHighlight(id); setAnnotations((current) => current.filter((annotation) => annotation.id !== id)); }} onEdit={(id, updates) => setAnnotations((current) => current.map((annotation) => annotation.id === id ? { ...annotation, ...updates } : annotation))} sharingEnabled={false} /></aside>}</div>
   </div>;
 }
 void window.document.fonts.load('16px "Source Code Pro Variable"').catch(() => undefined).then(() => {
