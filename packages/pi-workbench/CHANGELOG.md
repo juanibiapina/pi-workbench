@@ -4,9 +4,9 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 
 ## [Unreleased]
 
-### Added
+### Removed
 
-- Add pi-git.
+- Remove the GitHub extension and its `save_pr` and `remove_pr` tools.
 
 ## [0.1.2] - 2026-10-07
 

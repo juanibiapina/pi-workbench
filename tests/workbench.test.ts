@@ -8,7 +8,6 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { createContributor } from "../packages/pi-session-context/src/client.ts";
 import { register as provider } from "../packages/pi-session-context/src/index.ts";
 import { register as plans } from "../packages/pi-plans/src/index.ts";
-import { register as github } from "../packages/pi-github/src/index.ts";
 import { register as skills } from "../packages/pi-skills/src/index.ts";
 import aggregate from "../packages/pi-workbench/src/index.ts";
 import { register as socket } from "../packages/pi-socket/src/index.ts";
@@ -25,7 +24,6 @@ function harness(root: string) {
     on: (event: string, handler: any) => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
     registerTool: (tool: any) => { if (tools.has(tool.name)) throw new Error(`duplicate tool ${tool.name}`); tools.set(tool.name, tool); },
     registerCommand: () => {},
-    registerMessageRenderer: () => {},
     getSessionName: () => "Test session",
     setSessionName: () => {},
     exec: async () => ({ code: 1, stdout: "", stderr: "", killed: false }),
@@ -71,7 +69,7 @@ test("legacy session plans remain editable after migration and deletion", async 
     const context = ctx("legacy");
     const contextPath = `${path.join(dir, "legacy.jsonl")}.context.json`;
     await writeFile(contextPath, JSON.stringify({ version: 1, sessionId: "legacy", plans: [], pullRequests: ["https://github.com/o/r/pull/3"], skills: ["old-skill"] }));
-    plans(pi); github(pi); skills(pi); provider(pi, { dataDir: dir });
+    plans(pi); skills(pi); provider(pi, { dataDir: dir });
     await emit("session_start", context);
     const saved = await call("save_plan", context, { title: "Build", content: "# First\n" });
     const plan = saved.details.plan;
@@ -81,7 +79,7 @@ test("legacy session plans remain editable after migration and deletion", async 
     assert.ok(listed.content[0].text.includes(plan.path));
     assert.deepEqual(view.attachments, [{ id: plan.id, path: plan.path }]);
     assert.deepEqual(view.extensions["pi-plans"].data.plans, [{ id: plan.id, title: "Build", path: `legacy.jsonl.plans/${plan.id}.md` }]);
-    assert.ok(JSON.stringify(view.extensions["pi-github"].data).includes("https://github.com/o/r/pull/3"));
+    assert.deepEqual(view.extensions["pi-github"].data.pullRequests, ["https://github.com/o/r/pull/3"]);
     assert.deepEqual(view.extensions["pi-skills"].data.skills, ["old-skill"]);
     assert.equal(await readFile(plan.path, "utf8"), "# Revised\n");
     assert.equal(JSON.parse(await readFile(contextPath, "utf8")).version, 2);
@@ -127,8 +125,8 @@ test("a session leaves no context file until a contributor writes", async () => 
 
 test("a feature alone reports a missing provider instead of writing", async () => {
   const { pi, ctx, call } = harness(tmpdir());
-  github(pi);
-  await assert.rejects(call("save_pr", ctx("without-provider"), { url: "https://github.com/o/r/pull/1" }), /provider is unavailable/);
+  plans(pi);
+  await assert.rejects(call("save_plan", ctx("without-provider"), { title: "Plan", content: "# Plan" }), /provider is unavailable/);
 });
 
 test("aggregate registers every tool once without tmux", async () => {
@@ -138,12 +136,9 @@ test("aggregate registers every tool once without tmux", async () => {
   try {
     const { pi, ctx, emit, tools, call } = harness(dir);
     aggregate(pi);
-    for (const name of ["get_session_context", "save_plan", "delete_plan", "save_pr", "remove_pr", "load_skill", "set_session_name"]) assert.ok(tools.has(name));
+    for (const name of ["get_session_context", "save_plan", "delete_plan", "load_skill", "set_session_name"]) assert.ok(tools.has(name));
     const context = ctx("aggregate");
     await emit("session_start", context);
-    await call("save_pr", context, { url: "https://github.com/o/r/pull/2" });
-    const view = await call("get_session_context", context, {});
-    assert.deepEqual(view.details.extensions["pi-github"].data.pullRequests.map((entry: any) => entry.url), ["https://github.com/o/r/pull/2"]);
     await emit("session_shutdown", context);
   } finally {
     if (oldTmux !== undefined) process.env.TMUX = oldTmux;

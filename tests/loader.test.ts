@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const features = ["pi-tmux", "pi-socket", "pi-plans", "pi-github", "pi-skills", "pi-title", "pi-git"];
+const features = ["pi-tmux", "pi-socket", "pi-plans", "pi-skills", "pi-title"];
 test("packed packages load individually and together with Pi's loader", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-packages-loader-"));
   const agentDir = path.join(directory, "empty-agent");
@@ -41,6 +41,6 @@ test("packed packages load individually and together with Pi's loader", async ()
     const complete = await discoverAndLoadExtensions([aggregate], directory, agentDir);
     assert.deepEqual(complete.errors, []);
     assert.deepEqual(complete.extensions.flatMap((extension) => [...extension.tools.keys()]).sort(),
-      ["get_session_context", "save_plan", "delete_plan", "save_pr", "remove_pr", "load_skill", "set_session_name"].sort());
+      ["get_session_context", "save_plan", "delete_plan", "load_skill", "set_session_name"].sort());
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

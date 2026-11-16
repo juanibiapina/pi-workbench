@@ -23,10 +23,8 @@ Alternatively, install only the components you want. Each component's README lis
 | [`pi-tmux`](packages/pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
 | [`pi-socket`](packages/pi-socket) | Lets local programs control a running Pi session. |
 | [`pi-plans`](packages/pi-plans) | Per session plans. |
-| [`pi-github`](packages/pi-github) | Per session tracking of builds of pushed commits and their pull requests. |
 | [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
 | [`pi-title`](packages/pi-title) | Names sessions. |
-| [`pi-git`](packages/pi-git) | Detects git pushes for other extensions. |
 
 ### pi-session-context
 
@@ -69,15 +67,6 @@ Keeps editable Markdown plans with the session. Plan files live in `<sessionFile
 - `save_plan`: Saves a plan and returns its path.
 - `delete_plan`: Removes a saved plan.
 
-### pi-github
-
-Tracks builds of commits pushed during the session and their pull requests. Build status updates while builds run. Needs `gh` installed and logged in.
-
-**Tools:**
-
-- `save_pr`: Tracks a pull request the session did not push.
-- `remove_pr`: Stops tracking a pull request and the build of its branch.
-
 ### pi-skills
 
 Loads local skills and skills from public GitHub URLs. Records loaded skills with the session.
@@ -97,7 +86,3 @@ Names sessions. While a session has no name, it reminds the agent to name it.
 - `set_session_name`: Sets the session name.
 
 **Commands:** `/title <name>` sets the session name.
-
-### pi-git
-
-Detects git pushes from any source while Pi runs: the agent, `!` commands, or another terminal. Other extensions receive each push on Pi's event bus. See [pi-git](packages/pi-git) for the event.

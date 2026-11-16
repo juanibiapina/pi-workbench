@@ -19,7 +19,6 @@ aggregate({
   on: () => {},
   registerTool: (tool: any) => { tools.set(tool.name, tool); },
   registerCommand: () => {},
-  registerMessageRenderer: () => {},
   getSessionName: () => "Preview",
   setSessionName: () => {},
 } as unknown as ExtensionAPI);
@@ -37,7 +36,6 @@ function display(name: string, args: object, result: { content: Array<{ type: "t
 }
 
 const plan = { id: "0123456789abcdef01234567", title: "Improve rendering", path: "/tmp/session.plans/0123456789abcdef01234567.md" };
-const pr = "https://github.com/juanibiapina/pi-workbench/pull/42";
 const skillPath = "/tmp/skills/vocabulary/SKILL.md";
 const skillContent = `<skill name="vocabulary" location="${skillPath}">\nReferences are relative to /tmp/skills/vocabulary.\n\n# Language\n${Array.from({ length: 30 }, (_, i) => `Instruction ${i + 1}`).join("\n")}\n</skill>`;
 const samples = [
@@ -45,11 +43,9 @@ const samples = [
   { name: "get_session_context", args: {}, details: { contextPath: "/tmp/session.context.json", extensions: { "pi-skills": {}, "pi-plans": {} }, attachments: [{ id: plan.id, path: plan.path }] }, content: "Session details and large JSON", call: "get_session_context", summary: "2 namespaces · 1 attachment", expanded: plan.path },
   { name: "save_plan", args: { title: plan.title, content: "# A very long plan\n" }, details: { plan }, content: "Saved plan", call: plan.title, summary: "Saved Improve rendering", expanded: plan.id },
   { name: "delete_plan", args: { planId: plan.id }, details: { plan }, content: "Deleted plan", call: plan.id, summary: "Deleted Improve rendering", expanded: plan.path },
-  { name: "save_pr", args: { url: pr }, details: { pullRequest: pr }, content: "Saved PR", call: "pi-workbench#42", summary: "Saved PR", expanded: pr },
-  { name: "remove_pr", args: { url: pr }, details: { pullRequest: pr }, content: "Removed PR", call: "pi-workbench#42", summary: "Removed PR", expanded: pr },
 ];
 
-test("all six tools use one collapsed line and bounded expanded details", () => {
+test("all four tools use one collapsed line and bounded expanded details", () => {
   for (const sample of samples) {
     const result = { content: [{ type: "text" as const, text: sample.content }], details: sample.details, isError: false };
     const wide = display(sample.name, sample.args, result);
@@ -61,13 +57,11 @@ test("all six tools use one collapsed line and bounded expanded details", () => 
   }
 });
 
-test("PR call labels and expanded file paths are clickable when this terminal supports links", () => {
+test("expanded file paths are clickable when this terminal supports links", () => {
   setCapabilityOverrides({ hyperlinks: true });
   try {
     const links = (lines: string[]) => lines.flatMap((line) =>
       Array.from({ length: 72 }, (_, column) => getOsc8LinkAtColumn(line, column)).filter((url) => url !== undefined));
-    const prView = display("save_pr", { url: pr }, { content: [{ type: "text", text: "Saved PR" }], details: { pullRequest: pr }, isError: false });
-    assert.ok(links(prView.raw.collapsed).includes(pr));
     const file = "/tmp/project notes/plan.md";
     const planView = display("save_plan", { title: "Notes", content: "# Notes" }, {
       content: [{ type: "text", text: "Saved plan" }], details: { sessionId: "session-a", plan: { ...plan, path: file } }, isError: false,

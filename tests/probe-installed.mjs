@@ -32,17 +32,15 @@ try {
   const ping = await sendSocketRequest(endpoint, { type: 'ping' });
   if (ping.ok !== true || ping.result?.type !== 'pong') throw new Error('Socket ping failed');
   const saved = await extension.tools.get('save_plan').definition.execute('probe', { title: 'Probe', content: '# Probe\n' }, undefined, undefined, ctx);
-  await extension.tools.get('save_pr').definition.execute('probe', { url: 'https://github.com/owner/repo/pull/1' }, undefined, undefined, ctx);
   const loaded = await extension.tools.get('load_skill').definition.execute('probe', { source: 'probe-skill' }, undefined, undefined, ctx);
   if (!loaded.content[0].text.includes('# Instructions')) throw new Error('Skill content did not load');
   const details = await extension.tools.get('get_session_context').definition.execute('probe', {}, undefined, undefined, ctx);
   const entries = details.details.extensions;
   if (entries['pi-plans'].data.plans[0].id !== saved.details.plan.id ||
-      entries['pi-github'].data.pullRequests[0]?.url !== 'https://github.com/owner/repo/pull/1' ||
       entries['pi-skills'].data.skills[0] !== 'probe-skill') throw new Error('Contributions were not persisted');
   const context = JSON.parse(await readFile(`${ctx.sessionManager.getSessionFile()}.context.json`, 'utf8'));
-  if (context.version !== 2 || Object.keys(context.extensions).length !== 3) throw new Error('Sidecar was not saved');
-  console.log(JSON.stringify({ version: status.version, tools: [...extension.tools.keys()], socket: ping.result.type, plan: saved.details.plan.id, pr: entries['pi-github'].data.pullRequests[0].url, skill: entries['pi-skills'].data.skills[0] }));
+  if (context.version !== 2 || Object.keys(context.extensions).length !== 2) throw new Error('Sidecar was not saved');
+  console.log(JSON.stringify({ version: status.version, tools: [...extension.tools.keys()], socket: ping.result.type, plan: saved.details.plan.id, skill: entries['pi-skills'].data.skills[0] }));
 } finally {
   for (const handler of extension.handlers.get('session_shutdown') ?? []) await handler({ type: 'session_shutdown' }, ctx);
   if (endpoint) await stat(endpoint).then(() => { throw new Error('Socket remained after shutdown'); }, () => undefined);

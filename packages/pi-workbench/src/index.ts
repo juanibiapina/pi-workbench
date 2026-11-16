@@ -3,18 +3,14 @@ import { register as context } from "@juanibiapina/pi-session-context";
 import { register as tmux } from "@juanibiapina/pi-tmux";
 import { register as socket } from "@juanibiapina/pi-socket";
 import { register as plans } from "@juanibiapina/pi-plans";
-import { register as github } from "@juanibiapina/pi-github";
 import { register as skills } from "@juanibiapina/pi-skills";
 import { register as title } from "@juanibiapina/pi-title";
-import { register as git } from "@juanibiapina/pi-git";
 
 export default function register(pi: ExtensionAPI): void {
   context(pi);
   tmux(pi);
   socket(pi);
   plans(pi);
-  github(pi);
   skills(pi);
   title(pi);
-  git(pi);
 }
