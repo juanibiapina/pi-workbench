@@ -14,11 +14,6 @@ export interface GithubSession {
   pullRequests: PullRequest[];
 }
 
-export interface BuildResult {
-  build: Build;
-  pullRequest: PullRequest | null;
-}
-
 export interface SessionData {
   read(): Promise<unknown>;
   update(change: (current: unknown) => unknown): Promise<unknown>;
@@ -67,9 +62,8 @@ export function createTracker(options: {
   firstCheckDelayMs?: number;
   idleTimeoutMs?: number;
   now?: () => number;
-  onBuildFinished?: (result: BuildResult) => void;
 }): Tracker {
-  const { github, session, onBuildFinished } = options;
+  const { github, session } = options;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
   const firstCheckDelayMs = options.firstCheckDelayMs ?? 10_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 10 * 60_000;
@@ -105,20 +99,11 @@ export function createTracker(options: {
     return { ...data, pullRequests };
   });
 
-  const writeChecks = async (repository: string, branch: string, checks: Checks) => {
-    let changed = false;
-    const next = await write((data) => {
-      const target = data.builds.find((build) => onBranch(build, repository, branch));
-      changed = false;
-      if (!target || target.sha !== checks.sha) return data;
-      changed = (checks.state === "success" || checks.state === "failure") && target.checks?.state !== checks.state;
-      return { ...data, builds: data.builds.map((build) => build === target ? { ...build, checks } : build) };
-    });
-    if (!changed || !onBuildFinished) return;
-    const build = next.builds.find((item) => onBranch(item, repository, branch));
-    if (!build) return;
-    try { onBuildFinished({ build, pullRequest: pullRequestOf(next, build) }); } catch {}
-  };
+  const writeChecks = (repository: string, branch: string, checks: Checks) => write((data) => {
+    const target = data.builds.find((build) => onBranch(build, repository, branch));
+    if (!target || target.sha !== checks.sha) return data;
+    return { ...data, builds: data.builds.map((build) => build === target ? { ...build, checks } : build) };
+  });
 
   const checkBuild = async (build: Build) => {
     try { await writeChecks(build.repository, build.branch, await github.readChecks(build.repository, build.sha)); } catch {}

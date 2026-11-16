@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
-import { CustomMessageComponent, ToolExecutionComponent, initTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { ToolExecutionComponent, initTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getOsc8LinkAtColumn, setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
 import aggregate from "../packages/pi-workbench/src/index.ts";
 
 initTheme("dark");
 const emitter = new EventEmitter();
 const tools = new Map<string, any>();
-const renderers = new Map<string, any>();
 aggregate({
   events: {
     emit: (event: string, value: unknown) => emitter.emit(event, value),
@@ -20,7 +19,7 @@ aggregate({
   on: () => {},
   registerTool: (tool: any) => { tools.set(tool.name, tool); },
   registerCommand: () => {},
-  registerMessageRenderer: (type: string, renderer: any) => { renderers.set(type, renderer); },
+  registerMessageRenderer: () => {},
   getSessionName: () => "Preview",
   setSessionName: () => {},
 } as unknown as ExtensionAPI);
@@ -111,25 +110,4 @@ test("tool failures and partial results never claim success", () => {
   assert.ok(lines.includes("load_skill"));
   assert.ok(!lines.includes("Loading skill"));
   assert.ok(!lines.includes("✓"));
-});
-
-test("a build failure shows one line collapsed and its failed checks expanded", () => {
-  const build = {
-    repository: "o/r", branch: "feature", sha: "abc1234567", pushedAt: "2026-01-01T00:00:00.000Z", source: "agent",
-    checks: { sha: "abc1234567", state: "failure", updatedAt: "2026-01-01T00:00:00.000Z", runs: [
-      { name: "test", state: "failure", url: "https://github.com/o/r/actions/runs/1" },
-      { name: "lint", state: "success", url: "https://github.com/o/r/actions/runs/2" },
-    ] },
-  };
-  const pullRequest = { repository: "o/r", number: 7, url: "https://github.com/o/r/pull/7", branch: "feature", title: "PR 7", state: "open" };
-  const message = { role: "custom", customType: "pi-github-build-failure", content: "text for the model", display: true, details: { build, pullRequest }, timestamp: 0 };
-  const component = new CustomMessageComponent(message as any, renderers.get("pi-github-build-failure"));
-  const plain = (lines: string[]) => lines.join("\n").replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, "").replace(/\x1b\[[0-9;]*m/g, "");
-  const collapsed = plain(component.render(72));
-  assert.match(collapsed, /Build failed o\/r feature abc1234 o\/r#7/);
-  assert.doesNotMatch(collapsed, /test|text for the model/);
-  component.setExpanded(true);
-  const expanded = plain(component.render(72));
-  assert.match(expanded, /test/);
-  assert.doesNotMatch(expanded, /lint/);
 });

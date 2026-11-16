@@ -6,7 +6,7 @@ import * as path from "node:path";
 import test from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { PUSH_EVENT, type PushEvent } from "../packages/pi-git/src/index.ts";
-import { createTracker, register, summarize, type Build, type BuildResult, type Checks, type GitHub, type PullRequest } from "../packages/pi-github/src/index.ts";
+import { createTracker, summarize, type Build, type Checks, type GitHub, type PullRequest } from "../packages/pi-github/src/index.ts";
 import { createContributor } from "../packages/pi-session-context/src/client.ts";
 import { register as provider } from "../packages/pi-session-context/src/index.ts";
 
@@ -44,17 +44,15 @@ function fakeGitHub() {
 function harness(dir: string) {
   const emitter = new EventEmitter();
   const handlers = new Map<string, Array<(event: unknown, ctx: ExtensionContext) => unknown>>();
-  const messages: Array<{ customType: string; content: unknown; display: boolean; options?: { triggerTurn?: boolean } }> = [];
   const pi = {
     events: { emit: (name: string, value: unknown) => emitter.emit(name, value), on: (name: string, handler: (value: unknown) => void) => { emitter.on(name, handler); return () => emitter.off(name, handler); } },
     on: (name: string, handler: any) => handlers.set(name, [...(handlers.get(name) ?? []), handler]),
     registerTool: () => {}, registerMessageRenderer: () => {}, getSessionName: () => "Test",
-    sendMessage: (message: { customType: string; content: unknown; display: boolean }, options?: { triggerTurn?: boolean }) => { messages.push({ ...message, options }); },
   } as unknown as ExtensionAPI;
   const ctx = { cwd: dir, hasUI: false, isIdle: () => true, sessionManager: { getSessionId: () => "s", getSessionFile: () => path.join(dir, "s.jsonl") } } as ExtensionContext;
   const emit = async (name: string) => { for (const handler of handlers.get(name) ?? []) await handler({ type: name }, ctx); };
   provider(pi, { dataDir: dir });
-  return { pi, ctx, emit, emitter, messages };
+  return { pi, ctx, emit };
 }
 
 type Options = { pollIntervalMs?: number; firstCheckDelayMs?: number; idleTimeoutMs?: number; now?: () => number };
@@ -64,11 +62,10 @@ async function session(options: Options = {}) {
   const { pi, ctx, emit } = harness(dir);
   const contributor = createContributor(pi, "pi-github");
   const fake = fakeGitHub();
-  const results: BuildResult[] = [];
   const trackers: Array<ReturnType<typeof createTracker>> = [];
   const newTracker = () => {
     const created = createTracker({
-      github: fake.github, ...options, onBuildFinished: (result) => { results.push(result); },
+      github: fake.github, ...options,
       session: {
         read: async () => (await contributor.getSession(ctx)).extensions["pi-github"]?.data,
         update: async (change) => (await contributor.updateSession(ctx, change)).extensions["pi-github"]?.data,
@@ -86,8 +83,7 @@ async function session(options: Options = {}) {
     await emit("session_shutdown");
     await rm(dir, { recursive: true, force: true });
   };
-  const reported = () => results.map((result) => `${result.build.sha} ${result.build.checks?.state}`);
-  return { dir, tracker, newTracker, fake, results, reported, builds, pullRequests, start: () => emit("session_start"), close };
+  return { dir, tracker, newTracker, fake, builds, pullRequests, start: () => emit("session_start"), close };
 }
 
 const push = (branch: string, after: string, remoteUrl = "git@github.com:o/r.git", pushedAt = Date.parse("2026-01-01T00:00:00Z")): PushEvent => ({
@@ -283,106 +279,4 @@ test("a stopped tracker writes nothing", async () => {
     await s.tracker.recordPush(push("feature", "abc"));
     assert.deepEqual(await s.builds(), []);
   } finally { await s.close(); }
-});
-
-test("a pushed build that already failed is reported once", async () => {
-  const s = await session();
-  try {
-    await s.start();
-    s.fake.checks.set("abc", [run("failure")]);
-    await s.tracker.recordPush(push("feature", "abc"));
-    await s.tracker.refresh();
-    assert.deepEqual(s.reported(), ["abc failure"]);
-  } finally { await s.close(); }
-});
-
-test("a pushed build that already passed is reported once", async () => {
-  const s = await session();
-  try {
-    await s.start();
-    s.fake.checks.set("abc", [run("success")]);
-    await s.tracker.recordPush(push("feature", "abc"));
-    await s.tracker.refresh();
-    assert.deepEqual(s.reported(), ["abc success"]);
-  } finally { await s.close(); }
-});
-
-test("a failed build that passes on a rerun is reported again", async () => {
-  const s = await session();
-  try {
-    await s.start();
-    s.fake.checks.set("abc", [run("failure"), run("success")]);
-    await s.tracker.recordPush(push("feature", "abc"));
-    await s.tracker.refresh();
-    assert.deepEqual(s.reported(), ["abc failure", "abc success"]);
-  } finally { await s.close(); }
-});
-
-test("a pending build that fails while polling is reported with its pull request", async () => {
-  const s = await session({ pollIntervalMs: 10 });
-  try {
-    await s.start();
-    s.fake.pulls.set("feature", pr(7, "feature"));
-    s.fake.checks.set("abc", [run("pending"), run("failure")]);
-    await s.tracker.recordPush(push("feature", "abc"));
-    assert.deepEqual(s.reported(), []);
-    await until(async () => (await s.builds())[0]!.checks?.state === "failure");
-    await new Promise((resolve) => setTimeout(resolve, 40));
-    assert.deepEqual(s.reported(), ["abc failure"]);
-    assert.equal(s.results[0]!.pullRequest?.number, 7);
-  } finally { await s.close(); }
-});
-
-test("a resumed session does not report a saved failure again", async () => {
-  const s = await session();
-  try {
-    await s.start();
-    s.fake.checks.set("abc", [run("failure")]);
-    await s.tracker.recordPush(push("feature", "abc"));
-    s.tracker.stop();
-    await s.newTracker().refresh();
-    assert.deepEqual(s.reported(), ["abc failure"]);
-  } finally { await s.close(); }
-});
-
-test("a failed build of a pushed commit is shown and starts an agent turn", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-github-"));
-  const { pi, emit, emitter, messages } = harness(dir);
-  const fake = fakeGitHub();
-  try {
-    register(pi, { github: fake.github });
-    await emit("session_start");
-    fake.checks.set("abc", [[{ name: "test", state: "failure", url: "https://github.com/o/r/actions/runs/1" }]]);
-    emitter.emit(PUSH_EVENT, push("main", "abc"));
-    await until(async () => messages.length > 0);
-    assert.equal(messages.length, 1);
-    assert.equal(messages[0]!.customType, "pi-github-build-failure");
-    assert.equal(messages[0]!.display, true);
-    assert.match(String(messages[0]!.content), /https:\/\/github\.com\/o\/r\/actions\/runs\/1/);
-    assert.equal(messages[0]!.options?.triggerTurn, true);
-  } finally {
-    await emit("session_shutdown");
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test("a passed build of a pushed commit is shown without starting or steering an agent turn", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-github-"));
-  const { pi, emit, emitter, messages } = harness(dir);
-  const fake = fakeGitHub();
-  try {
-    register(pi, { github: fake.github });
-    await emit("session_start");
-    fake.checks.set("abc", [run("success")]);
-    emitter.emit(PUSH_EVENT, push("main", "abc"));
-    await until(async () => messages.length > 0);
-    assert.equal(messages.length, 1);
-    assert.equal(messages[0]!.customType, "pi-github-build-success");
-    assert.equal(messages[0]!.display, true);
-    assert.match(String(messages[0]!.content), /The build passed for o\/r branch main at commit abc/);
-    assert.equal(messages[0]!.options?.triggerTurn, false);
-  } finally {
-    await emit("session_shutdown");
-    await rm(dir, { recursive: true, force: true });
-  }
 });

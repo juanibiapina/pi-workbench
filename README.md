@@ -71,7 +71,7 @@ Keeps editable Markdown plans with the session. Plan files live in `<sessionFile
 
 ### pi-github
 
-Tracks builds of commits pushed during the session and their pull requests. Build status updates while builds run, and build failures appear in the transcript and reach the agent. Needs `gh` installed and logged in.
+Tracks builds of commits pushed during the session and their pull requests. Build status updates while builds run. Needs `gh` installed and logged in.
 
 **Tools:**
 
