@@ -13,10 +13,9 @@ The bundle includes the session context provider and all feature components. Ins
 ## Components
 
 - [`pi-session-context`](../pi-session-context): Session data and live status, including `get_session_context`.
-- [`pi-tmux`](../pi-tmux): Tmux activity state and pending notifications.
 - [`pi-socket`](../pi-socket): Local Unix socket for session control.
 - [`pi-plans`](../pi-plans): Editable session plans with `save_plan` and `delete_plan`.
 - [`pi-skills`](../pi-skills): Local and GitHub skill loading with `load_skill`.
 - [`pi-title`](../pi-title): Session naming with `/title` and `set_session_name`.
 
-Run Pi inside tmux to use the tmux features. The other components also work outside tmux. See each component's README for usage details.
+See each component's README for usage details.

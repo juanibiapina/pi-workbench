@@ -12,7 +12,6 @@ import { register as skills } from "../packages/pi-skills/src/index.ts";
 import aggregate from "../packages/pi-workbench/src/index.ts";
 import { register as socket } from "../packages/pi-socket/src/index.ts";
 import { sendSocketRequest } from "../packages/pi-socket/src/socket-server.ts";
-import { register as tmux } from "../packages/pi-tmux/src/index.ts";
 
 function harness(root: string) {
   const emitter = new EventEmitter();
@@ -129,10 +128,8 @@ test("a feature alone reports a missing provider instead of writing", async () =
   await assert.rejects(call("save_plan", ctx("without-provider"), { title: "Plan", content: "# Plan" }), /provider is unavailable/);
 });
 
-test("aggregate registers every tool once without tmux", async () => {
+test("aggregate registers every tool once", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "pi-aggregate-"));
-  const oldTmux = process.env.TMUX;
-  delete process.env.TMUX;
   try {
     const { pi, ctx, emit, tools, call } = harness(dir);
     aggregate(pi);
@@ -141,7 +138,6 @@ test("aggregate registers every tool once without tmux", async () => {
     await emit("session_start", context);
     await emit("session_shutdown", context);
   } finally {
-    if (oldTmux !== undefined) process.env.TMUX = oldTmux;
     await rm(dir, { recursive: true, force: true });
   }
 });
@@ -180,35 +176,4 @@ test("socket feature answers requests and publishes only its endpoint", async ()
     await emit("session_shutdown", context);
     await assert.rejects(sendSocketRequest(endpoint, { type: "ping" }));
   } finally { await rm(dir, { recursive: true, force: true }); }
-});
-
-test("tmux feature publishes the exact server and keeps pane markers", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-tmux-"));
-  const previous = { tmux: process.env.TMUX, pane: process.env.TMUX_PANE };
-  process.env.TMUX = "/tmp/current-tmux.sock,1,0";
-  process.env.TMUX_PANE = "%0";
-  try {
-    const { pi, ctx, emit } = harness(dir);
-    const calls: string[][] = [];
-    pi.exec = async (_binary: string, args: string[]) => {
-      calls.push(args);
-      return { code: 0, stderr: "", killed: false, stdout: args[0] === "display-message" && args.at(-1)?.includes("#{pane_id}")
-        ? "%0\u001fmain\u001f0\u001feditor\u001f/tmp/current-tmux.sock\n"
-        : args[0] === "list-panes" ? "working\n" : "1\n" };
-    };
-    provider(pi, { dataDir: dir }); tmux(pi);
-    const context = ctx("tmux");
-    await emit("session_start", context);
-    const runtime = await createContributor(pi, "reader").getRuntime(context);
-    assert.deepEqual(runtime.extensions["pi-tmux"].data, {
-      paneId: "%0", sessionName: "main", windowIndex: 0, windowName: "editor", socketPath: "/tmp/current-tmux.sock",
-    });
-    await emit("agent_start", context);
-    assert.ok(calls.some((args) => args.includes("@pi_state") && args.includes("working")));
-    await emit("session_shutdown", context);
-  } finally {
-    if (previous.tmux === undefined) delete process.env.TMUX; else process.env.TMUX = previous.tmux;
-    if (previous.pane === undefined) delete process.env.TMUX_PANE; else process.env.TMUX_PANE = previous.pane;
-    await rm(dir, { recursive: true, force: true });
-  }
 });
