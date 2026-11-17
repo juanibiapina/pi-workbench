@@ -8,10 +8,6 @@ const packagePath = process.argv[2];
 if (!packagePath) throw new Error('Usage: node --import tsx tests/probe-installed.mjs <installed-package-path>');
 const dir = await mkdtemp(path.join(tmpdir(), 'pi-nix-probe-'));
 const id = `probe-${process.pid}`;
-const savedTmux = process.env.TMUX;
-const savedPane = process.env.TMUX_PANE;
-delete process.env.TMUX;
-delete process.env.TMUX_PANE;
 const loaded = await discoverAndLoadExtensions([packagePath], dir, path.join(dir, 'empty-agent'));
 if (loaded.errors.length) throw new Error(JSON.stringify(loaded.errors));
 loaded.runtime.getSessionName = () => 'Nix probe';
@@ -46,6 +42,4 @@ try {
   if (endpoint) await stat(endpoint).then(() => { throw new Error('Socket remained after shutdown'); }, () => undefined);
   await stat(path.join(homedir(), '.local/share/pi/status', `${id}.json`)).then(() => { throw new Error('Runtime record remained after shutdown'); }, () => undefined);
   await rm(dir, { recursive: true, force: true });
-  if (savedTmux !== undefined) process.env.TMUX = savedTmux;
-  if (savedPane !== undefined) process.env.TMUX_PANE = savedPane;
 }

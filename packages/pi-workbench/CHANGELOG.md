@@ -7,6 +7,7 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 ### Removed
 
 - Remove the GitHub extension and its `save_pr` and `remove_pr` tools.
+- Remove the tmux extension and its `pi-tmux-notify-switch` and `pi-tmux-notify-clear` commands.
 
 ## [0.1.2] - 2026-10-07
 

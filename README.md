@@ -1,6 +1,6 @@
 # pi-workbench
 
-pi-workbench turns [Pi](https://github.com/earendil-works/pi) in tmux into a development environment.
+pi-workbench turns [Pi](https://github.com/earendil-works/pi) into a development environment.
 
 ## Full workbench
 
@@ -10,8 +10,6 @@ pi-workbench turns [Pi](https://github.com/earendil-works/pi) in tmux into a dev
 pi install npm:@juanibiapina/pi-workbench
 ```
 
-Run Pi inside tmux to see activity and notifications in tmux. Other features also work outside tmux.
-
 ## Components
 
 Alternatively, install only the components you want. Each component's README lists the other components it needs. Do not install the full workbench and separate components in the same Pi installation.
@@ -20,7 +18,6 @@ Alternatively, install only the components you want. Each component's README lis
 | --- | --- |
 | [`pi-workbench`](packages/pi-workbench) | Installs all components together. |
 | [`pi-session-context`](packages/pi-session-context) | Stores session data and live status. |
-| [`pi-tmux`](packages/pi-tmux) | Publishes Pi activity and pending notification state to tmux. |
 | [`pi-socket`](packages/pi-socket) | Lets local programs control a running Pi session. |
 | [`pi-plans`](packages/pi-plans) | Per session plans. |
 | [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
@@ -35,20 +32,6 @@ Tracks data for each session and live status. Check [protocol](docs/protocol.md)
 - `get_session_context`: Returns all data saved in the current session context.
 
 Session data lives in `<sessionFile>.context.json`. Live status lives under `~/.local/share/pi/status/` until the session closes.
-
-### pi-tmux
-
-Tmux integration. Tracks when Pi is working and when it finishes outside the visible pane. It also saves the pane and window location in live session status.
-
-These variables are available to display Pi's state in your tmux configuration:
-
-- `@pi_state`: The pane's working or pending notification state.
-- `@pi_notify_at`: The time of a pending notification.
-- `@pi_win_state`: The window's state across its panes.
-
-**Commands:** `pi-tmux-notify-switch` visits the oldest pending notification. `pi-tmux-notify-clear` clears notifications in a window.
-
-Pi must run inside tmux for this feature to work. Configure tmux to call the clear command when you view a window.
 
 ### pi-socket
 
