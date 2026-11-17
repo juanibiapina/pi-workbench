@@ -34,7 +34,7 @@ Approve a plan or submit comments to its running Pi session. This requires [pi-s
 
 For a project-local install, run `./.pi/npm/node_modules/.bin/pi-plans-serve` from the project directory.
 
-Use `--help` for options. The default port is `19433`; if you change it with `--port`, set `PI_PLANS_URL` when launching Pi and [Starmux's `plan_server_url`](https://github.com/juanibiapina/starmux/blob/main/docs/configuration.md#selected-pi-context) to match.
+Use `--help` for options. The default port is `19433`; if you change it with `--port`, set `PI_PLANS_URL` when launching Pi to match.
 
 ## Development
 
