@@ -17,10 +17,7 @@ function harness(root: string) {
     setSessionName: () => {},
     exec: async () => ({ code: 1, stdout: "", stderr: "", killed: false }),
   } as unknown as ExtensionAPI;
-  const ctx = (id: string) => ({
-    cwd: root, hasUI: false, isIdle: () => true, getSystemPrompt: () => "",
-    sessionManager: { getSessionId: () => id, getSessionFile: () => path.join(root, `${id}.jsonl`) },
-  }) as ExtensionContext;
+  const ctx = () => ({ cwd: root, hasUI: false, isIdle: () => true, getSystemPrompt: () => "" }) as ExtensionContext;
   const call = (name: string, context: ExtensionContext, params: unknown) =>
     tools.get(name).execute("test", params, undefined, undefined, context);
   return { pi, ctx, call, tools };
@@ -39,7 +36,7 @@ test("loading a local skill returns full instructions and its resolved identity"
     const filePath = path.join(dir, "skills", "example-skill", "SKILL.md");
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, "---\nname: example-skill\ndescription: Example\n---\n\n# Instructions\nUse the example.\n");
-    const context = ctx("skill");
+    const context = ctx();
     context.getSystemPrompt = () => `<available_skills><skill><name>example-skill</name><description>Example</description><location>${filePath}</location></skill></available_skills>`;
     skills(pi);
     const loaded = await call("load_skill", context, { source: "example-skill" });
