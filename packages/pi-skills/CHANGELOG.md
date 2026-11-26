@@ -8,6 +8,10 @@ All notable changes to `@juanibiapina/pi-skills` are recorded here. This file fo
 
 - Show one-line skill calls; expand a row to open the skill file or see a short preview.
 
+### Removed
+
+- Stop recording loaded skills with the session.
+
 ## [0.1.1] - 2026-09-27
 
 ### Added

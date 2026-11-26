@@ -1,31 +1,15 @@
 import { homedir } from "node:os";
 import { isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
-import { formatSkillsForPrompt, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { formatSkillsForPrompt, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { getCapabilities, hyperlink, Spacer, Text, TruncatedText } from "@earendil-works/pi-tui";
-import { createContributor } from "@juanibiapina/pi-session-context/client";
 import { loadSkill, skillCatalogSection } from "./skills.ts";
 
 const displayPath = (value: string) => value.startsWith(`${homedir()}/`) ? `~${value.slice(homedir().length)}` : value;
 const linkPath = (label: string, value: string) =>
   isAbsolute(value) && getCapabilities().hyperlinks ? hyperlink(label, pathToFileURL(value).href) : label;
 export function register(pi: ExtensionAPI): void {
-  const session = createContributor(pi, "pi-skills");
-  const load = async (ctx: ExtensionContext, source: string, force: boolean) => {
-    let skill: { name: string; filePath: string } | undefined;
-    const block = await loadSkill(pi, ctx, source, force, async (name, filePath) => {
-      await session.updateSession(ctx, (current) => {
-        const data = current === undefined ? { skills: [] as string[], skillPaths: {} as Record<string, string> } :
-          current as { skills: string[]; skillPaths?: Record<string, string> };
-        if (!Array.isArray(data.skills)) throw new Error("Invalid saved skills");
-        return { skills: data.skills.includes(name) ? data.skills : [...data.skills, name], skillPaths: { ...data.skillPaths, [name]: filePath } };
-      });
-      skill = { name, filePath };
-    });
-    if (!skill) throw new Error("Skill loaded without resolved identity");
-    return { block, skill };
-  };
   pi.on("before_agent_start", (event) => {
     const available = event.systemPromptOptions.skills ?? [];
     const section = skillCatalogSection(available);
@@ -45,7 +29,7 @@ export function register(pi: ExtensionAPI): void {
     const name = space === -1 ? event.text.slice(7) : event.text.slice(7, space);
     const args = space === -1 ? "" : event.text.slice(space + 1).trim();
     try {
-      const { block } = await load(ctx, name, false);
+      const { block } = await loadSkill(pi, ctx, name, false);
       return { action: "transform", text: args ? `${block}\n\n${args}` : block };
     } catch (error) {
       const message = `Could not load skill ${name}: ${String(error)}`;
@@ -55,11 +39,11 @@ export function register(pi: ExtensionAPI): void {
   });
   pi.registerTool({
     name: "load_skill", label: "Load skill",
-    description: "Load the full instructions of a discovered local skill by name, or a skill from a public GitHub URL. Records the loaded skill in the current Pi session. Use for every skill you apply. GitHub URL forms: repository, /tree/<ref>[/<path>], or /blob/<ref>/<path>/SKILL.md.",
+    description: "Load the full instructions of a discovered local skill by name, or a skill from a public GitHub URL. Use for every skill you apply. GitHub URL forms: repository, /tree/<ref>[/<path>], or /blob/<ref>/<path>/SKILL.md.",
     parameters: Type.Object({ source: Type.String(), force: Type.Optional(Type.Boolean()) }),
     async execute(_id, { source, force }, _signal, _update, ctx) {
-      const { block, skill } = await load(ctx, source, force === true);
-      return { content: [{ type: "text", text: block }], details: { source, ...skill } };
+      const { block, name, filePath } = await loadSkill(pi, ctx, source, force === true);
+      return { content: [{ type: "text", text: block }], details: { source, name, filePath } };
     },
     renderCall(args, theme) {
       return new TruncatedText(theme.fg("toolTitle", theme.bold("load_skill ")) + theme.fg("accent", args?.source ?? "…"));

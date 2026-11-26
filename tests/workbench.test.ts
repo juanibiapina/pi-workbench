@@ -1,26 +1,16 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { createContributor } from "../packages/pi-session-context/src/client.ts";
-import { register as provider } from "../packages/pi-session-context/src/index.ts";
-import { register as plans } from "../packages/pi-plans/src/index.ts";
 import { register as skills } from "../packages/pi-skills/src/index.ts";
 import aggregate from "../packages/pi-workbench/src/index.ts";
-import { register as socket } from "../packages/pi-socket/src/index.ts";
-import { sendSocketRequest } from "../packages/pi-socket/src/socket-server.ts";
 
 function harness(root: string) {
-  const emitter = new EventEmitter();
-  const handlers = new Map<string, Array<(event: any, ctx: ExtensionContext) => any>>();
   const tools = new Map<string, any>();
   const pi = {
-    events: { emit: (channel: string, value: unknown) => emitter.emit(channel, value),
-      on: (channel: string, handler: (value: unknown) => void) => { emitter.on(channel, handler); return () => emitter.off(channel, handler); } },
-    on: (event: string, handler: any) => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
+    on: () => {},
     registerTool: (tool: any) => { if (tools.has(tool.name)) throw new Error(`duplicate tool ${tool.name}`); tools.set(tool.name, tool); },
     registerCommand: () => {},
     getSessionName: () => "Test session",
@@ -31,149 +21,29 @@ function harness(root: string) {
     cwd: root, hasUI: false, isIdle: () => true, getSystemPrompt: () => "",
     sessionManager: { getSessionId: () => id, getSessionFile: () => path.join(root, `${id}.jsonl`) },
   }) as ExtensionContext;
-  const emit = async (name: string, context: ExtensionContext) => {
-    for (const handler of handlers.get(name) ?? []) await handler({ type: name }, context);
-  };
   const call = (name: string, context: ExtensionContext, params: unknown) =>
     tools.get(name).execute("test", params, undefined, undefined, context);
-  return { pi, ctx, emit, call, tools };
+  return { pi, ctx, call, tools };
 }
 
-test("isolated clients preserve concurrent namespaces and reject duplicate owners", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-provider-"));
-  try {
-    const { pi, ctx, emit } = harness(dir);
-    const first = createContributor(pi, "example.bookmarks");
-    provider(pi, { dataDir: dir });
-    const second = createContributor(pi, "example.other");
-    const context = ctx("one");
-    await emit("session_start", context);
-    await Promise.all([first.putSession(context, { items: ["one"] }), second.putSession(context, { count: 2 })]);
-    const saved = await first.getSession(context);
-    assert.deepEqual(saved.extensions["example.bookmarks"].data, { items: ["one"] });
-    assert.deepEqual(saved.extensions["example.other"].data, { count: 2 });
-    await assert.rejects(createContributor(pi, "example.bookmarks").putSession(context, {}), /Duplicate namespace/);
-    await first.putRuntime(context, { pane: "%0" });
-    assert.deepEqual((await second.getRuntime(context)).extensions["example.bookmarks"].data, { pane: "%0" });
-    assert.equal((await stat(path.join(dir, "status", "one.json"))).mode & 0o777, 0o600);
-    await emit("session_shutdown", context);
-    await assert.rejects(stat(path.join(dir, "status", "one.json")), { code: "ENOENT" });
-  } finally { await rm(dir, { recursive: true, force: true }); }
+test("aggregate registers every tool once", () => {
+  const { pi, tools } = harness(tmpdir());
+  aggregate(pi);
+  assert.deepEqual([...tools.keys()].sort(), ["load_skill", "set_session_name"]);
 });
 
-test("legacy session plans remain editable after migration and deletion", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-plans-"));
-  try {
-    const { pi, ctx, emit, call } = harness(dir);
-    const context = ctx("legacy");
-    const contextPath = `${path.join(dir, "legacy.jsonl")}.context.json`;
-    await writeFile(contextPath, JSON.stringify({ version: 1, sessionId: "legacy", plans: [], pullRequests: ["https://github.com/o/r/pull/3"], skills: ["old-skill"] }));
-    plans(pi); skills(pi); provider(pi, { dataDir: dir });
-    await emit("session_start", context);
-    const saved = await call("save_plan", context, { title: "Build", content: "# First\n" });
-    const plan = saved.details.plan;
-    await writeFile(plan.path, "# Revised\n");
-    const listed = await call("get_session_context", context, {});
-    const view = listed.details;
-    assert.ok(listed.content[0].text.includes(plan.path));
-    assert.deepEqual(view.attachments, [{ id: plan.id, path: plan.path }]);
-    assert.deepEqual(view.extensions["pi-plans"].data.plans, [{ id: plan.id, title: "Build", path: `legacy.jsonl.plans/${plan.id}.md` }]);
-    assert.deepEqual(view.extensions["pi-github"].data.pullRequests, ["https://github.com/o/r/pull/3"]);
-    assert.deepEqual(view.extensions["pi-skills"].data.skills, ["old-skill"]);
-    assert.equal(await readFile(plan.path, "utf8"), "# Revised\n");
-    assert.equal(JSON.parse(await readFile(contextPath, "utf8")).version, 2);
-    assert.equal(JSON.parse(await readFile(`${contextPath}.v1.bak`, "utf8")).version, 1);
-    await call("delete_plan", context, { planId: plan.id });
-    await assert.rejects(stat(plan.path), { code: "ENOENT" });
-    await emit("session_shutdown", context);
-  } finally { await rm(dir, { recursive: true, force: true }); }
-});
-
-test("invalid legacy data remains intact instead of being migrated", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-invalid-legacy-"));
-  try {
-    const { pi, ctx, emit } = harness(dir);
-    const file = path.join(dir, "invalid.jsonl.context.json");
-    const old = JSON.stringify({ version: 1, sessionId: "invalid", plans: [{ id: "0123456789abcdef01234567", title: "Bad", path: "../../other.plans/0123456789abcdef01234567.md" }] });
-    await writeFile(file, old);
-    provider(pi, { dataDir: dir });
-    await assert.rejects(emit("session_start", ctx("invalid")), /Invalid legacy plan/);
-    assert.equal(await readFile(file, "utf8"), old);
-    await assert.rejects(stat(`${file}.v1.bak`), { code: "ENOENT" });
-  } finally { await rm(dir, { recursive: true, force: true }); }
-});
-
-test("a session leaves no context file until a contributor writes", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-unsaved-"));
-  try {
-    const { pi, ctx, emit, call } = harness(dir);
-    const notes = createContributor(pi, "example.notes");
-    provider(pi, { dataDir: dir });
-    const context = ctx("fresh");
-    const contextPath = path.join(dir, "fresh.jsonl.context.json");
-    await emit("session_start", context);
-    await emit("agent_start", context);
-    await emit("agent_settled", context);
-    assert.deepEqual((await call("get_session_context", context, {})).details.extensions, {});
-    await assert.rejects(stat(contextPath), { code: "ENOENT" });
-    await notes.putSession(context, { items: ["one"] });
-    assert.deepEqual(JSON.parse(await readFile(contextPath, "utf8")).extensions["example.notes"].data, { items: ["one"] });
-    await emit("session_shutdown", context);
-  } finally { await rm(dir, { recursive: true, force: true }); }
-});
-
-test("a feature alone reports a missing provider instead of writing", async () => {
-  const { pi, ctx, call } = harness(tmpdir());
-  plans(pi);
-  await assert.rejects(call("save_plan", ctx("without-provider"), { title: "Plan", content: "# Plan" }), /provider is unavailable/);
-});
-
-test("aggregate registers every tool once", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-aggregate-"));
-  try {
-    const { pi, ctx, emit, tools, call } = harness(dir);
-    aggregate(pi);
-    for (const name of ["get_session_context", "save_plan", "delete_plan", "load_skill", "set_session_name"]) assert.ok(tools.has(name));
-    const context = ctx("aggregate");
-    await emit("session_start", context);
-    await emit("session_shutdown", context);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-
-test("loading a local skill keeps full instructions and records its resolved identity", async () => {
+test("loading a local skill returns full instructions and its resolved identity", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "pi-skill-render-"));
   try {
-    const { pi, ctx, emit, call } = harness(dir);
+    const { pi, ctx, call } = harness(dir);
     const filePath = path.join(dir, "skills", "example-skill", "SKILL.md");
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, "---\nname: example-skill\ndescription: Example\n---\n\n# Instructions\nUse the example.\n");
     const context = ctx("skill");
     context.getSystemPrompt = () => `<available_skills><skill><name>example-skill</name><description>Example</description><location>${filePath}</location></skill></available_skills>`;
-    provider(pi, { dataDir: dir }); skills(pi);
-    await emit("session_start", context);
+    skills(pi);
     const loaded = await call("load_skill", context, { source: "example-skill" });
     assert.deepEqual(loaded.details, { source: "example-skill", name: "example-skill", filePath });
     assert.ok(loaded.content[0].text.includes("# Instructions\nUse the example."));
-    const saved = await call("get_session_context", context, {});
-    assert.deepEqual(saved.details.extensions["pi-skills"].data, { skills: ["example-skill"], skillPaths: { "example-skill": filePath } });
-    await emit("session_shutdown", context);
-  } finally { await rm(dir, { recursive: true, force: true }); }
-});
-
-test("socket feature answers requests and publishes only its endpoint", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pi-socket-"));
-  try {
-    const { pi, ctx, emit } = harness(dir);
-    provider(pi, { dataDir: dir }); socket(pi, { dataDir: dir });
-    const context = ctx("socket");
-    await emit("session_start", context);
-    const runtime = await createContributor(pi, "reader").getRuntime(context);
-    const endpoint = (runtime.extensions["pi-socket"].data as {socketPath: string}).socketPath;
-    assert.equal((await sendSocketRequest(endpoint, { type: "ping" })).ok, true);
-    await emit("session_shutdown", context);
-    await assert.rejects(sendSocketRequest(endpoint, { type: "ping" }));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

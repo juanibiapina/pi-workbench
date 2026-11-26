@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const features = ["pi-socket", "pi-plans", "pi-skills", "pi-title"];
+const features = ["pi-skills", "pi-title"];
 test("packed packages load individually and together with Pi's loader", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-packages-loader-"));
   const agentDir = path.join(directory, "empty-agent");
@@ -17,7 +17,7 @@ test("packed packages load individually and together with Pi's loader", async ()
     const tarballs = await readdir(directory);
     const aggregate = path.join(directory, "pi-workbench");
     const dependencies = path.join(aggregate, "node_modules", "@juanibiapina");
-    for (const name of ["pi-workbench", "pi-session-context", ...features]) {
+    for (const name of ["pi-workbench", ...features]) {
       const destination = name === "pi-workbench" ? aggregate : path.join(dependencies, name);
       await mkdir(destination, { recursive: true });
       const { version } = JSON.parse(await readFile(path.join(root, "packages", name, "package.json"), "utf8"));
@@ -25,22 +25,13 @@ test("packed packages load individually and together with Pi's loader", async ()
       assert.ok(tarball, `Missing ${name} tarball`);
       execFileSync("tar", ["-xzf", path.join(directory, tarball), "-C", destination, "--strip-components=1"]);
     }
-    const provider = path.join(dependencies, "pi-session-context");
     for (const feature of features) {
-      const featurePath = path.join(dependencies, feature);
-      for (const entries of [[provider, featurePath], [featurePath, provider]]) {
-        const result = await discoverAndLoadExtensions(entries, directory, agentDir);
-        assert.deepEqual(result.errors, [], `${feature} failed in ${entries.map((entry) => path.basename(entry)).join(", ")} order`);
-        assert.equal(result.extensions.length, 2);
-        assert.equal(result.extensions.flatMap((extension) => [...extension.tools.keys()]).filter((name) => name === "get_session_context").length, 1);
-      }
+      const result = await discoverAndLoadExtensions([path.join(dependencies, feature)], directory, agentDir);
+      assert.deepEqual(result.errors, [], `${feature} failed to load`);
+      assert.equal(result.extensions.length, 1);
     }
-    const onlyProvider = await discoverAndLoadExtensions([provider], directory, agentDir);
-    assert.deepEqual(onlyProvider.errors, []);
-    assert.deepEqual(onlyProvider.extensions.flatMap((extension) => [...extension.tools.keys()]), ["get_session_context"]);
     const complete = await discoverAndLoadExtensions([aggregate], directory, agentDir);
     assert.deepEqual(complete.errors, []);
-    assert.deepEqual(complete.extensions.flatMap((extension) => [...extension.tools.keys()]).sort(),
-      ["get_session_context", "save_plan", "delete_plan", "load_skill", "set_session_name"].sort());
+    assert.deepEqual(complete.extensions.flatMap((extension) => [...extension.tools.keys()]).sort(), ["load_skill", "set_session_name"]);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

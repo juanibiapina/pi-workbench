@@ -35,17 +35,13 @@ function display(name: string, args: object, result: { content: Array<{ type: "t
   return { call: plain(call), collapsed: plain(collapsed), expanded: plain(expanded), raw: { call, collapsed, expanded }, component };
 }
 
-const plan = { id: "0123456789abcdef01234567", title: "Improve rendering", path: "/tmp/session.plans/0123456789abcdef01234567.md" };
 const skillPath = "/tmp/skills/vocabulary/SKILL.md";
 const skillContent = `<skill name="vocabulary" location="${skillPath}">\nReferences are relative to /tmp/skills/vocabulary.\n\n# Language\n${Array.from({ length: 30 }, (_, i) => `Instruction ${i + 1}`).join("\n")}\n</skill>`;
 const samples = [
   { name: "load_skill", args: { source: "vocabulary" }, details: { source: "vocabulary", name: "vocabulary", filePath: skillPath }, content: skillContent, call: "vocabulary", summary: "Loaded vocabulary", expanded: skillPath },
-  { name: "get_session_context", args: {}, details: { contextPath: "/tmp/session.context.json", extensions: { "pi-skills": {}, "pi-plans": {} }, attachments: [{ id: plan.id, path: plan.path }] }, content: "Session details and large JSON", call: "get_session_context", summary: "2 namespaces · 1 attachment", expanded: plan.path },
-  { name: "save_plan", args: { title: plan.title, content: "# A very long plan\n" }, details: { plan }, content: "Saved plan", call: plan.title, summary: "Saved Improve rendering", expanded: plan.id },
-  { name: "delete_plan", args: { planId: plan.id }, details: { plan }, content: "Deleted plan", call: plan.id, summary: "Deleted Improve rendering", expanded: plan.path },
 ];
 
-test("all four tools use one collapsed line and bounded expanded details", () => {
+test("tools use one collapsed line and bounded expanded details", () => {
   for (const sample of samples) {
     const result = { content: [{ type: "text" as const, text: sample.content }], details: sample.details, isError: false };
     const wide = display(sample.name, sample.args, result);
@@ -62,20 +58,10 @@ test("expanded file paths are clickable when this terminal supports links", () =
   try {
     const links = (lines: string[]) => lines.flatMap((line) =>
       Array.from({ length: 72 }, (_, column) => getOsc8LinkAtColumn(line, column)).filter((url) => url !== undefined));
-    const file = "/tmp/project notes/plan.md";
-    const planView = display("save_plan", { title: "Notes", content: "# Notes" }, {
-      content: [{ type: "text", text: "Saved plan" }], details: { sessionId: "session-a", plan: { ...plan, path: file } }, isError: false,
-    });
-    assert.ok(links(planView.raw.expanded).includes("file:///tmp/project%20notes/plan.md"));
-    assert.ok(links(planView.raw.expanded).includes(`http://127.0.0.1:19433/plans/session-a/${plan.id}`));
     const skillView = display("load_skill", { source: "vocabulary" }, {
       content: [{ type: "text", text: skillContent }], details: samples[0].details, isError: false,
     });
     assert.ok(links(skillView.raw.expanded).includes("file:///tmp/skills/vocabulary/SKILL.md"));
-    const contextView = display("get_session_context", {}, {
-      content: [{ type: "text", text: "Session details" }], details: samples[1].details, isError: false,
-    });
-    assert.ok(links(contextView.raw.expanded).includes(`file://${plan.path}`));
   } finally {
     setCapabilityOverrides({});
   }

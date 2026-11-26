@@ -108,10 +108,7 @@ export async function loadSkill(
 	ctx: ExtensionContext,
 	source: string,
 	force: boolean,
-	recordSkill: (name: string, filePath: string) => Promise<void>,
-): Promise<string> {
-	const sessionFile = ctx.sessionManager.getSessionFile();
-	if (!sessionFile) throw new Error("Current Pi session has no session file");
+): Promise<{ block: string; name: string; filePath: string }> {
 	let filePath: string;
 	if (source.startsWith("https://")) {
 		filePath = await downloadSkill(pi, source, force);
@@ -125,8 +122,8 @@ export async function loadSkill(
 	if (!loaded || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(loaded.name) || loaded.name.length > 64) throw new Error(`Invalid skill: ${filePath}`);
 	if (!source.startsWith("https://") && loaded.name !== source) throw new Error(`Skill name changed: ${source}`);
 	const body = stripFrontmatter(readFileSync(filePath, "utf8")).trim();
-	await recordSkill(loaded.name, filePath);
-	return `<skill name="${escapeXml(loaded.name)}" location="${escapeXml(filePath)}">\nReferences are relative to ${dirname(filePath)}.\n\n${body}\n</skill>`;
+	const block = `<skill name="${escapeXml(loaded.name)}" location="${escapeXml(filePath)}">\nReferences are relative to ${dirname(filePath)}.\n\n${body}\n</skill>`;
+	return { block, name: loaded.name, filePath };
 }
 
 export function skillCatalogSection(available: Skill[]): string {
