@@ -23,20 +23,6 @@ export function register(pi: ExtensionAPI): void {
       ? event.systemPrompt.replace(previous, `\n\n${section}`)
       : `${event.systemPrompt}\n\n${section}` };
   });
-  pi.on("input", async (event, ctx) => {
-    if (!event.text.startsWith("/skill:")) return { action: "continue" };
-    const space = event.text.indexOf(" ");
-    const name = space === -1 ? event.text.slice(7) : event.text.slice(7, space);
-    const args = space === -1 ? "" : event.text.slice(space + 1).trim();
-    try {
-      const { block } = await loadSkill(pi, ctx, name, false);
-      return { action: "transform", text: args ? `${block}\n\n${args}` : block };
-    } catch (error) {
-      const message = `Could not load skill ${name}: ${String(error)}`;
-      if (ctx.hasUI) ctx.ui.notify(message, "error"); else console.error(message);
-      return { action: "handled" };
-    }
-  });
   pi.registerTool({
     name: "load_skill", label: "Load skill",
     description: "Load the full instructions of a discovered local skill by name, or a skill from a public GitHub URL. Use for every skill you apply. GitHub URL forms: repository, /tree/<ref>[/<path>], or /blob/<ref>/<path>/SKILL.md.",

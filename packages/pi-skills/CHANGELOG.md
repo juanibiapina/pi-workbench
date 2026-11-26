@@ -11,6 +11,7 @@ All notable changes to `@juanibiapina/pi-skills` are recorded here. This file fo
 ### Removed
 
 - Stop recording loaded skills with the session.
+- Remove the `/skill:<name>` handler; Pi expands these commands itself.
 
 ## [0.1.1] - 2026-09-27
 
