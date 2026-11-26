@@ -12,7 +12,6 @@
   "overrides": { "lodash-es": "4.18.1" },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.5.2",
-    "@earendil-works/pi-tui": "1.5.2",
     "@sinclair/typebox": "^0.34.0",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0",

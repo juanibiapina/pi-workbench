@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const names = ["pi-skills", "pi-title", "pi-workbench"];
+const names = ["pi-title", "pi-workbench"];
 for (const name of names) {
   const workspace = `packages/${name}`;
   const { version } = JSON.parse(readFileSync(`${workspace}/package.json`, "utf8"));

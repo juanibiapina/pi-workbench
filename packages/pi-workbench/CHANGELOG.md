@@ -9,6 +9,7 @@ All notable changes to `@juanibiapina/pi-workbench` are recorded here. This file
 - Remove the GitHub extension and its `save_pr` and `remove_pr` tools.
 - Remove the tmux extension and its `pi-tmux-notify-switch` and `pi-tmux-notify-clear` commands.
 - Remove the session context, socket, and plans extensions and their `get_session_context`, `save_plan`, and `delete_plan` tools.
+- Remove the skills extension and its `load_skill` tool. Pi's built-in skill loading takes over.
 
 ## [0.1.2] - 2026-10-07
 

@@ -1,6 +1,6 @@
 # pi-workbench
 
-pi-workbench adds skill loading and session naming to [Pi](https://github.com/earendil-works/pi).
+pi-workbench adds session naming to [Pi](https://github.com/earendil-works/pi).
 
 ## Full workbench
 
@@ -17,16 +17,7 @@ Alternatively, install only the components you want. Do not install the full wor
 | Component | Purpose |
 | --- | --- |
 | [`pi-workbench`](packages/pi-workbench) | Installs all components together. |
-| [`pi-skills`](packages/pi-skills) | Improve skills loader with support for remote URLs. |
 | [`pi-title`](packages/pi-title) | Names sessions. |
-
-### pi-skills
-
-Loads local skills and skills from public GitHub URLs.
-
-**Tools:**
-
-- `load_skill`: Loads a skill by local name or GitHub URL.
 
 ### pi-title
 
