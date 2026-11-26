@@ -12,7 +12,7 @@ pi install npm:@juanibiapina/pi-workbench
 
 ## Components
 
-Alternatively, install only the components you want. Each component's README lists the other components it needs. Do not install the full workbench and separate components in the same Pi installation.
+Alternatively, install only the components you want. Do not install the full workbench and separate components in the same Pi installation.
 
 | Component | Purpose |
 | --- | --- |

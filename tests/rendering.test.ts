@@ -1,21 +1,12 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
 import test from "node:test";
 import { ToolExecutionComponent, initTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getOsc8LinkAtColumn, setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
 import aggregate from "../packages/pi-workbench/src/index.ts";
 
 initTheme("dark");
-const emitter = new EventEmitter();
 const tools = new Map<string, any>();
 aggregate({
-  events: {
-    emit: (event: string, value: unknown) => emitter.emit(event, value),
-    on: (event: string, handler: (value: unknown) => void) => {
-      emitter.on(event, handler);
-      return () => emitter.off(event, handler);
-    },
-  },
   on: () => {},
   registerTool: (tool: any) => { tools.set(tool.name, tool); },
   registerCommand: () => {},
